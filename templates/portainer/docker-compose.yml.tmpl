@@ -1,0 +1,17 @@
+services:
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    ports:
+      - "{{index . "https_port"}}:9443"
+      - "{{index . "http_port"}}:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - {{index . "data_dir"}}:/data
+    networks:
+      - homelabctl-net
+
+networks:
+  homelabctl-net:
+    external: true

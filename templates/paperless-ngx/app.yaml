@@ -1,0 +1,59 @@
+name: paperless-ngx
+description: Document management system with OCR
+category: productivity
+version: "latest"
+ports:
+  - host: 8000
+    container: 8000
+    protocol: tcp
+    description: Web UI
+    value_name: web_port
+values:
+  - name: web_port
+    description: Web UI port
+    default: "8000"
+  - name: secret_key
+    description: Django secret key
+    secret: true
+    auto_gen: password
+  - name: db_password
+    description: PostgreSQL password
+    secret: true
+    auto_gen: password
+  - name: admin_user
+    description: Admin username
+    default: "admin"
+  - name: admin_password
+    description: Admin password
+    secret: true
+    auto_gen: password
+dependencies:
+  - docker
+volumes:
+  - name: data
+    container: /usr/src/paperless/data
+    description: Paperless data
+  - name: media
+    container: /usr/src/paperless/media
+    description: Paperless media/documents
+  - name: consume
+    container: /usr/src/paperless/consume
+    description: Paperless consume directory
+  - name: export
+    container: /usr/src/paperless/export
+    description: Paperless export directory
+  - name: db
+    container: /var/lib/postgresql/data
+    description: PostgreSQL data
+health_check:
+  url: "http://localhost:{{.web_port}}"
+  interval: 60s
+backup:
+  paths:
+    - data
+    - media
+    - db
+requirements:
+  min_ram: 1G
+  min_disk: 10G
+  arch: [amd64, arm64]

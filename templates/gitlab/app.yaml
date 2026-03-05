@@ -1,0 +1,54 @@
+name: gitlab
+description: Full DevOps platform with Git hosting, CI/CD, and more
+category: dev
+version: "latest"
+ports:
+  - host: 80
+    container: 80
+    protocol: tcp
+    description: HTTP
+    value_name: web_port
+  - host: 443
+    container: 443
+    protocol: tcp
+    description: HTTPS
+  - host: 22
+    container: 22
+    protocol: tcp
+    description: SSH
+    value_name: ssh_port
+values:
+  - name: web_port
+    description: HTTP port
+    default: "8929"
+  - name: ssh_port
+    description: SSH port
+    default: "2224"
+  - name: external_url
+    description: External URL for GitLab
+    default: "http://gitlab.local"
+  - name: root_password
+    description: GitLab root password
+    secret: true
+    auto_gen: password
+volumes:
+  - name: config
+    container: /etc/gitlab
+    description: GitLab configuration
+  - name: logs
+    container: /var/log/gitlab
+    description: GitLab logs
+  - name: data
+    container: /var/opt/gitlab
+    description: GitLab data
+health_check:
+  url: "http://localhost:{{.web_port}}"
+  interval: 120s
+backup:
+  paths:
+    - config
+    - data
+requirements:
+  min_ram: 4G
+  min_disk: 20G
+  arch: [amd64, arm64]

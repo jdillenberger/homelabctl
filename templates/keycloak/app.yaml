@@ -1,0 +1,48 @@
+name: keycloak
+description: Identity and access management / SSO server
+category: infra
+version: "latest"
+ports:
+  - host: 8443
+    container: 8443
+    protocol: tcp
+    description: HTTPS
+    value_name: https_port
+  - host: 8080
+    container: 8080
+    protocol: tcp
+    description: HTTP
+    value_name: http_port
+values:
+  - name: admin_user
+    description: Keycloak admin username
+    default: "admin"
+  - name: admin_password
+    description: Keycloak admin password
+    secret: true
+    auto_gen: password
+  - name: db_password
+    description: PostgreSQL password
+    secret: true
+    auto_gen: password
+  - name: http_port
+    description: HTTP port
+    default: "8080"
+  - name: https_port
+    description: HTTPS port
+    default: "8443"
+dependencies:
+  - docker
+volumes:
+  - name: db
+    container: /var/lib/postgresql/data
+    description: PostgreSQL data
+health_check:
+  url: "https://localhost:{{.https_port}}"
+  interval: 30s
+backup:
+  paths:
+    - db
+requirements:
+  min_ram: 512M
+  arch: [amd64, arm64]

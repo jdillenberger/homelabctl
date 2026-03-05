@@ -1,0 +1,49 @@
+name: nginx-proxy-manager
+description: Reverse proxy manager with Let's Encrypt support
+category: infra
+version: "latest"
+ports:
+  - host: 80
+    container: 80
+    protocol: tcp
+    description: HTTP
+  - host: 443
+    container: 443
+    protocol: tcp
+    description: HTTPS
+  - host: 81
+    container: 81
+    protocol: tcp
+    description: Admin Web UI
+    value_name: web_port
+values:
+  - name: web_port
+    description: Admin Web UI port
+    default: "81"
+  - name: db_password
+    description: MariaDB password
+    secret: true
+    auto_gen: password
+dependencies:
+  - docker
+volumes:
+  - name: data
+    container: /data
+    description: NPM data
+  - name: letsencrypt
+    container: /etc/letsencrypt
+    description: Let's Encrypt certificates
+  - name: db
+    container: /var/lib/mysql
+    description: MariaDB data
+health_check:
+  url: "http://localhost:{{.web_port}}"
+  interval: 30s
+backup:
+  paths:
+    - data
+    - letsencrypt
+    - db
+requirements:
+  min_ram: 256M
+  arch: [amd64, arm64]

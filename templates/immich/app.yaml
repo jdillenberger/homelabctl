@@ -1,0 +1,44 @@
+name: immich
+description: Self-hosted photo and video management
+category: media
+version: "release"
+ports:
+  - host: 2283
+    container: 2283
+    protocol: tcp
+    description: Web UI
+    value_name: web_port
+values:
+  - name: web_port
+    description: Web UI port
+    default: "2283"
+  - name: db_password
+    description: PostgreSQL password
+    secret: true
+    auto_gen: password
+  - name: upload_location
+    description: Path for uploaded photos/videos
+    default: "./upload"
+dependencies:
+  - docker
+volumes:
+  - name: upload
+    container: /usr/src/app/upload
+    description: Photo/video uploads
+  - name: db
+    container: /var/lib/postgresql/data
+    description: PostgreSQL data
+  - name: model-cache
+    container: /cache
+    description: Machine learning model cache
+health_check:
+  url: "http://localhost:{{.web_port}}"
+  interval: 60s
+backup:
+  paths:
+    - upload
+    - db
+requirements:
+  min_ram: 2G
+  min_disk: 20G
+  arch: [amd64, arm64]

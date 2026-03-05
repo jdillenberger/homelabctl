@@ -1,0 +1,63 @@
+services:
+  paperless-ngx:
+    image: ghcr.io/paperless-ngx/paperless-ngx:latest
+    container_name: paperless-ngx
+    restart: unless-stopped
+    ports:
+      - "{{index . "web_port"}}:8000"
+    environment:
+      - PAPERLESS_DBHOST=paperless-ngx-db
+      - PAPERLESS_DBNAME=paperless
+      - PAPERLESS_DBUSER=paperless
+      - PAPERLESS_DBPASS={{index . "db_password"}}
+      - PAPERLESS_REDIS=redis://paperless-ngx-redis:6379
+      - PAPERLESS_SECRET_KEY={{index . "secret_key"}}
+      - PAPERLESS_ADMIN_USER={{index . "admin_user"}}
+      - PAPERLESS_ADMIN_PASSWORD={{index . "admin_password"}}
+      - PAPERLESS_URL=http://{{index . "hostname"}}.{{index . "domain"}}:{{index . "web_port"}}
+    volumes:
+      - {{index . "data_dir"}}/data:/usr/src/paperless/data
+      - {{index . "data_dir"}}/media:/usr/src/paperless/media
+      - {{index . "data_dir"}}/consume:/usr/src/paperless/consume
+      - {{index . "data_dir"}}/export:/usr/src/paperless/export
+    depends_on:
+      paperless-ngx-db:
+        condition: service_healthy
+      paperless-ngx-redis:
+        condition: service_healthy
+    networks:
+      - homelabctl-net
+
+  paperless-ngx-db:
+    image: postgres:16-alpine
+    container_name: paperless-ngx-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=paperless
+      - POSTGRES_USER=paperless
+      - POSTGRES_PASSWORD={{index . "db_password"}}
+    volumes:
+      - {{index . "data_dir"}}/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paperless"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - homelabctl-net
+
+  paperless-ngx-redis:
+    image: redis:7-alpine
+    container_name: paperless-ngx-redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - homelabctl-net
+
+networks:
+  homelabctl-net:
+    external: true

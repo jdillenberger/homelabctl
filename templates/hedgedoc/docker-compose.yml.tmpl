@@ -1,0 +1,41 @@
+services:
+  hedgedoc:
+    image: quay.io/hedgedoc/hedgedoc:latest
+    container_name: hedgedoc
+    restart: unless-stopped
+    ports:
+      - "{{index . "web_port"}}:3000"
+    environment:
+      - CMD_DB_URL=postgres://hedgedoc:{{index . "db_password"}}@hedgedoc-db:5432/hedgedoc
+      - CMD_SESSION_SECRET={{index . "session_secret"}}
+      - CMD_DOMAIN={{index . "hostname"}}.{{index . "domain"}}
+      - CMD_PROTOCOL_USESSL=false
+    volumes:
+      - {{index . "data_dir"}}/uploads:/hedgedoc/public/uploads
+    depends_on:
+      hedgedoc-db:
+        condition: service_healthy
+    networks:
+      - homelabctl-net
+
+  hedgedoc-db:
+    image: postgres:16-alpine
+    container_name: hedgedoc-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=hedgedoc
+      - POSTGRES_USER=hedgedoc
+      - POSTGRES_PASSWORD={{index . "db_password"}}
+    volumes:
+      - {{index . "data_dir"}}/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hedgedoc"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - homelabctl-net
+
+networks:
+  homelabctl-net:
+    external: true

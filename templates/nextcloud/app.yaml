@@ -1,0 +1,57 @@
+name: nextcloud
+description: Self-hosted productivity and file sync platform
+category: productivity
+version: "latest"
+ports:
+  - host: 8080
+    container: 80
+    protocol: tcp
+    description: Web UI
+    value_name: web_port
+values:
+  - name: web_port
+    description: Web UI port
+    default: "8080"
+  - name: db_password
+    description: Database root password
+    secret: true
+    auto_gen: password
+  - name: nextcloud_admin_user
+    description: Nextcloud admin username
+    default: "admin"
+  - name: nextcloud_admin_password
+    description: Nextcloud admin password
+    secret: true
+    auto_gen: password
+  - name: db_name
+    description: Database name
+    default: "nextcloud"
+  - name: db_user
+    description: Database user
+    default: "nextcloud"
+  - name: db_user_password
+    description: Database user password
+    secret: true
+    auto_gen: password
+dependencies:
+  - docker
+volumes:
+  - name: html
+    container: /var/www/html
+    description: Nextcloud application files
+  - name: db
+    container: /var/lib/mysql
+    description: MariaDB data
+health_check:
+  url: "http://localhost:{{.web_port}}"
+  interval: 60s
+backup:
+  paths:
+    - html
+    - db
+  pre_hook: "docker exec nextcloud-db mariadb-dump -u root -p{{.db_password}} --all-databases > /tmp/nextcloud-db-backup.sql"
+  post_hook: "rm -f /tmp/nextcloud-db-backup.sql"
+requirements:
+  min_ram: 512M
+  min_disk: 10G
+  arch: [amd64, arm64]

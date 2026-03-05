@@ -1,0 +1,35 @@
+name: portainer
+description: Docker container management UI
+category: infra
+version: "latest"
+ports:
+  - host: 9443
+    container: 9443
+    protocol: tcp
+    description: Web UI (HTTPS)
+    value_name: https_port
+  - host: 9000
+    container: 9000
+    protocol: tcp
+    description: Web UI (HTTP)
+    value_name: http_port
+values:
+  - name: http_port
+    description: HTTP port
+    default: "9000"
+  - name: https_port
+    description: HTTPS port
+    default: "9443"
+volumes:
+  - name: data
+    container: /data
+    description: Portainer data
+health_check:
+  url: "https://localhost:{{.https_port}}"
+  interval: 30s
+backup:
+  paths:
+    - data
+requirements:
+  min_ram: 64M
+  arch: [amd64, arm64, armv7]

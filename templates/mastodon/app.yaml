@@ -1,0 +1,49 @@
+name: mastodon
+description: Decentralized social network (Fediverse)
+category: social
+version: "latest"
+ports:
+  - host: 3000
+    container: 3000
+    protocol: tcp
+    description: Web UI
+    value_name: web_port
+values:
+  - name: web_port
+    description: Web UI port
+    default: "3000"
+  - name: db_password
+    description: PostgreSQL password
+    secret: true
+    auto_gen: password
+  - name: secret_key_base
+    description: Secret key base
+    secret: true
+    auto_gen: password
+  - name: otp_secret
+    description: OTP secret
+    secret: true
+    auto_gen: password
+  - name: local_domain
+    description: Local domain for the instance
+    default: "mastodon.local"
+dependencies:
+  - docker
+volumes:
+  - name: public-system
+    container: /mastodon/public/system
+    description: Mastodon uploaded media
+  - name: db
+    container: /var/lib/postgresql/data
+    description: PostgreSQL data
+health_check:
+  url: "http://localhost:{{.web_port}}"
+  interval: 60s
+backup:
+  paths:
+    - public-system
+    - db
+requirements:
+  min_ram: 2G
+  min_disk: 10G
+  arch: [amd64, arm64]

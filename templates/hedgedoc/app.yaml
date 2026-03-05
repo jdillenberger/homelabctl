@@ -1,0 +1,41 @@
+name: hedgedoc
+description: Collaborative real-time markdown editor
+category: productivity
+version: "latest"
+ports:
+  - host: 3000
+    container: 3000
+    protocol: tcp
+    description: Web UI
+    value_name: web_port
+values:
+  - name: web_port
+    description: Web UI port
+    default: "3000"
+  - name: db_password
+    description: PostgreSQL password
+    secret: true
+    auto_gen: password
+  - name: session_secret
+    description: Session secret key
+    secret: true
+    auto_gen: password
+dependencies:
+  - docker
+volumes:
+  - name: uploads
+    container: /hedgedoc/public/uploads
+    description: HedgeDoc uploads
+  - name: db
+    container: /var/lib/postgresql/data
+    description: PostgreSQL data
+health_check:
+  url: "http://localhost:{{.web_port}}"
+  interval: 30s
+backup:
+  paths:
+    - uploads
+    - db
+requirements:
+  min_ram: 256M
+  arch: [amd64, arm64]

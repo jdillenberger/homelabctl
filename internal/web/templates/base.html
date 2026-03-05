@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{block "title" .}}homelabctl{{end}}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="/static/js/htmx.min.js"></script>
+    <style>
+        :root {
+            --nav-bg: #1a1a2e;
+        }
+        nav {
+            background: var(--nav-bg);
+            padding: 0.75rem 1.5rem;
+        }
+        nav ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        nav a {
+            color: #e0e0e0;
+            text-decoration: none;
+        }
+        nav a:hover, nav a.active {
+            color: #fff;
+        }
+        .logo {
+            font-weight: bold;
+            font-size: 1.25rem;
+            color: #fff !important;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .stat-card {
+            text-align: center;
+            padding: 1rem;
+            border-radius: 8px;
+            background: var(--pico-card-background-color, #fff);
+            border: 1px solid var(--pico-muted-border-color, #e0e0e0);
+        }
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        .stat-card .label {
+            font-size: 0.85rem;
+            color: var(--pico-muted-color, #666);
+        }
+        .apps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .app-card {
+            padding: 1rem;
+            border-radius: 8px;
+            background: var(--pico-card-background-color, #fff);
+            border: 1px solid var(--pico-muted-border-color, #e0e0e0);
+        }
+        .app-card h4 {
+            margin-bottom: 0.5rem;
+        }
+        .badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+        .badge-running {
+            background: #d4edda;
+            color: #155724;
+        }
+        .badge-stopped {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .badge-available {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        .badge-deployed {
+            background: #d4edda;
+            color: #155724;
+        }
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: 0.75rem;
+        }
+        .actions button, .actions a {
+            font-size: 0.85rem;
+            padding: 0.35rem 0.75rem;
+        }
+        footer {
+            text-align: center;
+            padding: 1rem;
+            color: var(--pico-muted-color, #666);
+            font-size: 0.85rem;
+        }
+        .quick-actions {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+        .section-title {
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+        }
+        .htmx-indicator {
+            opacity: 0;
+            transition: opacity 200ms ease-in;
+        }
+        .htmx-request .htmx-indicator {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="/" class="logo">homelabctl</a></li>
+        </ul>
+        <ul>
+            <li><a href="/">Dashboard</a></li>
+            <li><a href="/apps">Apps</a></li>
+            <li><a href="/fleet">Fleet</a></li>
+            <li><a href="/backups">Backups</a></li>
+            <li><a href="/settings">Settings</a></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        {{block "content" .}}{{end}}
+    </main>
+
+    <footer>
+        <p>homelabctl &mdash; Homelab app deployment &amp; management</p>
+    </footer>
+</body>
+</html>

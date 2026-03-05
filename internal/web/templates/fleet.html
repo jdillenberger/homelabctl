@@ -1,0 +1,54 @@
+{{template "base.html" .}}
+
+{{define "title"}}Fleet - homelabctl{{end}}
+
+{{define "content"}}
+<h2>Fleet: {{.FleetName}}</h2>
+
+<h3 class="section-title">Hosts</h3>
+{{if .Hosts}}
+<div class="overflow-auto">
+    <table>
+        <thead>
+            <tr>
+                <th>Hostname</th>
+                <th>Role</th>
+                <th>Address</th>
+                <th>Port</th>
+                <th>Apps</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Hosts}}
+            <tr>
+                <td>{{.Hostname}}</td>
+                <td>{{.Role}}</td>
+                <td>{{if .Address}}{{.Address}}{{else}}-{{end}}</td>
+                <td>{{.Port}}</td>
+                <td>{{if .Apps}}{{range $i, $a := .Apps}}{{if $i}}, {{end}}{{$a}}{{end}}{{else}}-{{end}}</td>
+                <td>
+                    {{if .Online}}<span class="badge badge-running">online</span>
+                    {{else}}<span class="badge badge-stopped">offline</span>{{end}}
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{else}}
+<p>No hosts configured.</p>
+{{end}}
+
+<h3 class="section-title">Fleet Config</h3>
+<table>
+    <tr><td><strong>Fleet Name</strong></td><td>{{.FleetName}}</td></tr>
+    <tr><td><strong>Domain Suffix</strong></td><td>{{.DomainSuffix}}</td></tr>
+    <tr><td><strong>Host Count</strong></td><td>{{len .Hosts}}</td></tr>
+</table>
+
+<h3 class="section-title">Actions</h3>
+<div class="quick-actions">
+    <a href="/api/fleet" role="button" class="outline">Fleet API (JSON)</a>
+</div>
+{{end}}

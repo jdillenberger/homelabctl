@@ -1,0 +1,35 @@
+name: obsidian
+description: Obsidian LiveSync CouchDB backend for note synchronization
+category: productivity
+version: "latest"
+ports:
+  - host: 5984
+    container: 5984
+    protocol: tcp
+    description: CouchDB HTTP API
+    value_name: web_port
+values:
+  - name: web_port
+    description: CouchDB port
+    default: "5984"
+  - name: admin_password
+    description: CouchDB admin password
+    secret: true
+    auto_gen: password
+volumes:
+  - name: data
+    container: /opt/couchdb/data
+    description: CouchDB data
+  - name: config
+    container: /opt/couchdb/etc/local.d
+    description: CouchDB configuration
+health_check:
+  url: "http://localhost:{{.web_port}}"
+  interval: 30s
+backup:
+  paths:
+    - data
+    - config
+requirements:
+  min_ram: 256M
+  arch: [amd64, arm64]

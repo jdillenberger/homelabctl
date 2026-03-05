@@ -1,0 +1,66 @@
+{{template "base.html" .}}
+
+{{define "title"}}Apps - homelabctl{{end}}
+
+{{define "content"}}
+<h2>Apps</h2>
+
+<h3 class="section-title">Deployed Apps</h3>
+{{if .DeployedApps}}
+<div class="overflow-auto">
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Version</th>
+                <th>Deployed</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .DeployedApps}}
+            <tr>
+                <td><a href="/apps/{{.Name}}">{{.Name}}</a></td>
+                <td>{{.Version}}</td>
+                <td>{{.DeployedAt.Format "2006-01-02 15:04"}}</td>
+                <td>
+                    <div class="actions">
+                        <a href="/apps/{{.Name}}" role="button" class="outline secondary" style="font-size:0.8rem;padding:0.25rem 0.5rem;">Details</a>
+                    </div>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{else}}
+<p>No apps deployed yet.</p>
+{{end}}
+
+<h3 class="section-title">Available Templates</h3>
+{{if .Templates}}
+<div class="apps-grid">
+    {{range .Templates}}
+    <div class="app-card">
+        <h4>{{.Name}}</h4>
+        <p>{{.Description}}</p>
+        <p>
+            <span class="badge badge-available">{{.Category}}</span>
+            {{if .Version}}<small>v{{.Version}}</small>{{end}}
+        </p>
+        {{if not (index $.DeployedSet .Name)}}
+        <div class="actions">
+            <small>Deploy via CLI: <code>homelabctl apps deploy {{.Name}}</code></small>
+        </div>
+        {{else}}
+        <div class="actions">
+            <span class="badge badge-deployed">deployed</span>
+        </div>
+        {{end}}
+    </div>
+    {{end}}
+</div>
+{{else}}
+<p>No templates available.</p>
+{{end}}
+{{end}}

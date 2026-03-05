@@ -1,0 +1,42 @@
+name: adguard
+description: Network-wide ad and tracker blocking DNS server
+category: infra
+version: "latest"
+ports:
+  - host: 3000
+    container: 3000
+    protocol: tcp
+    description: Web UI (initial setup)
+    value_name: web_port
+  - host: 80
+    container: 80
+    protocol: tcp
+    description: Web UI (after setup)
+  - host: 53
+    container: 53
+    protocol: udp
+    description: DNS
+    value_name: dns_port
+values:
+  - name: web_port
+    description: Web UI port
+    default: "3000"
+  - name: dns_port
+    description: DNS port
+    default: "53"
+volumes:
+  - name: work
+    container: /opt/adguardhome/work
+    description: AdGuard working data
+  - name: conf
+    container: /opt/adguardhome/conf
+    description: AdGuard configuration
+health_check:
+  url: "http://localhost:{{.web_port}}"
+  interval: 30s
+backup:
+  paths:
+    - conf
+requirements:
+  min_ram: 128M
+  arch: [amd64, arm64, armv7]

@@ -1,0 +1,87 @@
+package cli
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+
+	"github.com/jdillenberger/homelabctl/internal/config"
+)
+
+var (
+	cfgFile   string
+	appsDir   string
+	verbose   bool
+	quiet     bool
+	version   = "dev"
+	commit    = "none"
+	buildDate = "unknown"
+)
+
+// SetVersionInfo sets build information from ldflags.
+func SetVersionInfo(v, c, d string) {
+	version = v
+	commit = c
+	buildDate = d
+}
+
+var rootCmd = &cobra.Command{
+	Use:   "homelabctl",
+	Short: "Homelab app deployment & management tool",
+	Long:  "homelabctl deploys and manages self-hosted apps on your homelab using Docker Compose.",
+	SilenceUsage: true,
+}
+
+// Execute runs the root command.
+func Execute() error {
+	return rootCmd.Execute()
+}
+
+func init() {
+	cobra.OnInitialize(initConfig)
+
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default /etc/homelabctl/config.yaml)")
+	rootCmd.PersistentFlags().StringVar(&appsDir, "apps-dir", "", "apps directory override")
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
+	rootCmd.PersistentFlags().BoolVarP(&quiet, "quiet", "q", false, "suppress non-essential output")
+
+	rootCmd.AddCommand(versionCmd)
+}
+
+func initConfig() {
+	config.SetDefaults()
+
+	if cfgFile != "" {
+		viper.SetConfigFile(cfgFile)
+	} else {
+		viper.SetConfigName("config")
+		viper.SetConfigType("yaml")
+		viper.AddConfigPath("/etc/homelabctl")
+		viper.AddConfigPath("$HOME/.config/homelabctl")
+		viper.AddConfigPath(".")
+	}
+
+	viper.SetEnvPrefix("HOMELABCTL")
+	viper.AutomaticEnv()
+
+	if err := viper.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			fmt.Fprintf(os.Stderr, "Warning: error reading config: %v\n", err)
+		}
+	}
+
+	// Override from flags
+	if appsDir != "" {
+		viper.Set("apps_dir", appsDir)
+	}
+}
+
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Print version information",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Printf("homelabctl %s (commit: %s, built: %s)\n", version, commit, buildDate)
+	},
+}

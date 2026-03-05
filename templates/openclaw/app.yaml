@@ -1,0 +1,24 @@
+name: openclaw
+description: Open source reimplementation of Captain Claw game
+category: other
+version: "latest"
+ports:
+  - host: 8080
+    container: 8080
+    protocol: tcp
+    description: Web UI
+    value_name: web_port
+values:
+  - name: web_port
+    description: Web UI port
+    default: "8080"
+volumes:
+  - name: data
+    container: /data
+    description: OpenClaw data
+health_check:
+  url: "http://localhost:{{.web_port}}"
+  interval: 30s
+requirements:
+  min_ram: 128M
+  arch: [amd64, arm64]

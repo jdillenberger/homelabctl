@@ -1,0 +1,45 @@
+services:
+  nextcloud:
+    image: nextcloud:latest
+    container_name: nextcloud
+    restart: unless-stopped
+    ports:
+      - "{{index . "web_port"}}:80"
+    environment:
+      - MYSQL_HOST=nextcloud-db
+      - MYSQL_DATABASE={{index . "db_name"}}
+      - MYSQL_USER={{index . "db_user"}}
+      - MYSQL_PASSWORD={{index . "db_user_password"}}
+      - NEXTCLOUD_ADMIN_USER={{index . "nextcloud_admin_user"}}
+      - NEXTCLOUD_ADMIN_PASSWORD={{index . "nextcloud_admin_password"}}
+      - NEXTCLOUD_TRUSTED_DOMAINS={{index . "hostname"}}.{{index . "domain"}}
+    volumes:
+      - {{index . "data_dir"}}/html:/var/www/html
+    depends_on:
+      nextcloud-db:
+        condition: service_healthy
+    networks:
+      - homelabctl-net
+
+  nextcloud-db:
+    image: mariadb:11
+    container_name: nextcloud-db
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD={{index . "db_password"}}
+      - MYSQL_DATABASE={{index . "db_name"}}
+      - MYSQL_USER={{index . "db_user"}}
+      - MYSQL_PASSWORD={{index . "db_user_password"}}
+    volumes:
+      - {{index . "data_dir"}}/db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - homelabctl-net
+
+networks:
+  homelabctl-net:
+    external: true

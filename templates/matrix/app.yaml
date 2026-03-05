@@ -1,0 +1,44 @@
+name: matrix
+description: Matrix homeserver for decentralized messaging
+category: social
+version: "latest"
+ports:
+  - host: 8008
+    container: 8008
+    protocol: tcp
+    description: Client-Server API
+    value_name: web_port
+values:
+  - name: web_port
+    description: Client-Server API port
+    default: "8008"
+  - name: server_name
+    description: Matrix server name (domain)
+    default: "matrix.local"
+  - name: db_password
+    description: PostgreSQL password
+    secret: true
+    auto_gen: password
+  - name: registration_shared_secret
+    description: Shared secret for user registration
+    secret: true
+    auto_gen: password
+dependencies:
+  - docker
+volumes:
+  - name: data
+    container: /data
+    description: Synapse data
+  - name: db
+    container: /var/lib/postgresql/data
+    description: PostgreSQL data
+health_check:
+  url: "http://localhost:{{.web_port}}/_matrix/client/versions"
+  interval: 30s
+backup:
+  paths:
+    - data
+    - db
+requirements:
+  min_ram: 512M
+  arch: [amd64, arm64]

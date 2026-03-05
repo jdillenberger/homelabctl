@@ -1,0 +1,22 @@
+services:
+  webtop:
+    image: lscr.io/linuxserver/webtop:{{index . "desktop_env"}}
+    container_name: webtop
+    restart: unless-stopped
+    ports:
+      - "{{index . "web_port"}}:3000"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+    volumes:
+      - {{index . "data_dir"}}/config:/config
+    shm_size: '1gb'
+    security_opt:
+      - seccomp:unconfined
+    networks:
+      - homelabctl-net
+
+networks:
+  homelabctl-net:
+    external: true

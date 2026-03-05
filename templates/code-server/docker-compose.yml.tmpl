@@ -1,0 +1,21 @@
+services:
+  code-server:
+    image: lscr.io/linuxserver/code-server:latest
+    container_name: code-server
+    restart: unless-stopped
+    ports:
+      - "{{index . "web_port"}}:8443"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - PASSWORD={{index . "password"}}
+      - SUDO_PASSWORD={{index . "sudo_password"}}
+    volumes:
+      - {{index . "data_dir"}}/config:/config
+    networks:
+      - homelabctl-net
+
+networks:
+  homelabctl-net:
+    external: true

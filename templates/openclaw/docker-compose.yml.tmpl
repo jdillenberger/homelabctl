@@ -1,0 +1,15 @@
+services:
+  openclaw:
+    image: ghcr.io/nicholasgasior/openclaw:latest
+    container_name: openclaw
+    restart: unless-stopped
+    ports:
+      - "{{index . "web_port"}}:8080"
+    volumes:
+      - {{index . "data_dir"}}/data:/data
+    networks:
+      - homelabctl-net
+
+networks:
+  homelabctl-net:
+    external: true

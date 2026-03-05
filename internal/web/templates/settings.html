@@ -1,0 +1,55 @@
+{{template "base.html" .}}
+
+{{define "title"}}Settings - homelabctl{{end}}
+
+{{define "content"}}
+<h2>Settings</h2>
+
+<h3 class="section-title">System Info</h3>
+<table>
+    <tr><td><strong>Hostname</strong></td><td>{{.Hostname}}</td></tr>
+    <tr><td><strong>Version</strong></td><td>{{.Version}}</td></tr>
+    <tr><td><strong>Uptime</strong></td><td>{{.Uptime}}</td></tr>
+</table>
+
+<h3 class="section-title">Configuration</h3>
+<table>
+    <tr><td><strong>Apps Directory</strong></td><td>{{.Config.AppsDir}}</td></tr>
+    <tr><td><strong>Data Directory</strong></td><td>{{.Config.DataDir}}</td></tr>
+    <tr><td><strong>Domain</strong></td><td>{{.Config.Network.Domain}}</td></tr>
+    <tr><td><strong>Web Port</strong></td><td>{{.Config.Network.WebPort}}</td></tr>
+    <tr><td><strong>Compose Command</strong></td><td>{{.Config.Docker.ComposeCommand}}</td></tr>
+    <tr><td><strong>Docker Network</strong></td><td>{{.Config.Docker.DefaultNetwork}}</td></tr>
+</table>
+
+<h3 class="section-title">mDNS</h3>
+<table>
+    <tr>
+        <td><strong>Enabled</strong></td>
+        <td>
+            {{if .Config.MDNS.Enabled}}<span class="badge badge-running">yes</span>
+            {{else}}<span class="badge badge-stopped">no</span>{{end}}
+        </td>
+    </tr>
+    <tr>
+        <td><strong>Advertise Apps</strong></td>
+        <td>{{if .Config.MDNS.AdvertiseApps}}yes{{else}}no{{end}}</td>
+    </tr>
+</table>
+
+<h3 class="section-title">Integrations</h3>
+<table>
+    <tr>
+        <td><strong>Keycloak</strong></td>
+        <td>{{if .Config.Integrations.Keycloak.Enabled}}<span class="badge badge-running">enabled</span> ({{.Config.Integrations.Keycloak.URL}}){{else}}<span class="badge badge-stopped">disabled</span>{{end}}</td>
+    </tr>
+    <tr>
+        <td><strong>Beszel</strong></td>
+        <td>{{if .Config.Integrations.Beszel.Enabled}}<span class="badge badge-running">enabled</span> ({{.Config.Integrations.Beszel.HubURL}}){{else}}<span class="badge badge-stopped">disabled</span>{{end}}</td>
+    </tr>
+    <tr>
+        <td><strong>Nginx Proxy Manager</strong></td>
+        <td>{{if .Config.Integrations.NginxProxyManager.Enabled}}<span class="badge badge-running">enabled</span> ({{.Config.Integrations.NginxProxyManager.URL}}){{else}}<span class="badge badge-stopped">disabled</span>{{end}}</td>
+    </tr>
+</table>
+{{end}}

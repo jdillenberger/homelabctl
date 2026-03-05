@@ -1,0 +1,43 @@
+services:
+  gitea:
+    image: gitea/gitea:latest
+    container_name: gitea
+    restart: unless-stopped
+    ports:
+      - "{{index . "web_port"}}:3000"
+      - "{{index . "ssh_port"}}:22"
+    environment:
+      - GITEA__database__DB_TYPE=postgres
+      - GITEA__database__HOST=gitea-db:5432
+      - GITEA__database__NAME=gitea
+      - GITEA__database__USER=gitea
+      - GITEA__database__PASSWD={{index . "db_password"}}
+    volumes:
+      - {{index . "data_dir"}}/data:/data
+    depends_on:
+      gitea-db:
+        condition: service_healthy
+    networks:
+      - homelabctl-net
+
+  gitea-db:
+    image: postgres:16-alpine
+    container_name: gitea-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=gitea
+      - POSTGRES_USER=gitea
+      - POSTGRES_PASSWORD={{index . "db_password"}}
+    volumes:
+      - {{index . "data_dir"}}/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gitea"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - homelabctl-net
+
+networks:
+  homelabctl-net:
+    external: true

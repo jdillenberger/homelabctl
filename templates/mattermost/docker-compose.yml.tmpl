@@ -1,0 +1,44 @@
+services:
+  mattermost:
+    image: mattermost/mattermost-team-edition:latest
+    container_name: mattermost
+    restart: unless-stopped
+    ports:
+      - "{{index . "web_port"}}:8065"
+    environment:
+      - MM_SQLSETTINGS_DRIVERNAME=postgres
+      - MM_SQLSETTINGS_DATASOURCE=postgres://mattermost:{{index . "db_password"}}@mattermost-db:5432/mattermost?sslmode=disable&connect_timeout=10
+      - MM_BLEVESETTINGS_INDEXDIR=/mattermost/bleve-indexes
+    volumes:
+      - {{index . "data_dir"}}/config:/mattermost/config
+      - {{index . "data_dir"}}/data:/mattermost/data
+      - {{index . "data_dir"}}/logs:/mattermost/logs
+      - {{index . "data_dir"}}/plugins:/mattermost/plugins
+      - {{index . "data_dir"}}/client-plugins:/mattermost/client/plugins
+    depends_on:
+      mattermost-db:
+        condition: service_healthy
+    networks:
+      - homelabctl-net
+
+  mattermost-db:
+    image: postgres:16-alpine
+    container_name: mattermost-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=mattermost
+      - POSTGRES_USER=mattermost
+      - POSTGRES_PASSWORD={{index . "db_password"}}
+    volumes:
+      - {{index . "data_dir"}}/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mattermost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - homelabctl-net
+
+networks:
+  homelabctl-net:
+    external: true

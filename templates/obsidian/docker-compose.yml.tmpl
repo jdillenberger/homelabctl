@@ -1,0 +1,19 @@
+services:
+  obsidian:
+    image: couchdb:latest
+    container_name: obsidian
+    restart: unless-stopped
+    ports:
+      - "{{index . "web_port"}}:5984"
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD={{index . "admin_password"}}
+    volumes:
+      - {{index . "data_dir"}}/data:/opt/couchdb/data
+      - {{index . "data_dir"}}/config:/opt/couchdb/etc/local.d
+    networks:
+      - homelabctl-net
+
+networks:
+  homelabctl-net:
+    external: true

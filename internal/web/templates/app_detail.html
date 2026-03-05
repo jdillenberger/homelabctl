@@ -1,0 +1,50 @@
+{{template "base.html" .}}
+
+{{define "title"}}{{.App.Name}} - homelabctl{{end}}
+
+{{define "content"}}
+<h2>{{.App.Name}}</h2>
+
+<div class="grid">
+    <div>
+        <article>
+            <header>App Details</header>
+            <table>
+                <tr><td><strong>Name</strong></td><td>{{.App.Name}}</td></tr>
+                <tr><td><strong>Template</strong></td><td>{{.App.Template}}</td></tr>
+                <tr><td><strong>Version</strong></td><td>{{.App.Version}}</td></tr>
+                <tr><td><strong>Deployed</strong></td><td>{{.App.DeployedAt.Format "2006-01-02 15:04:05"}}</td></tr>
+            </table>
+        </article>
+    </div>
+    <div>
+        <article>
+            <header>Status</header>
+            <div id="app-status">
+                {{if .Status}}
+                <pre>{{.Status}}</pre>
+                {{else}}
+                <p>Unable to retrieve status.</p>
+                {{end}}
+            </div>
+        </article>
+    </div>
+</div>
+
+<h3 class="section-title">Actions</h3>
+<div id="action-result"></div>
+<div class="actions">
+    <button hx-post="/apps/{{.App.Name}}/start" hx-target="#action-result" hx-swap="innerHTML">
+        Start
+    </button>
+    <button hx-post="/apps/{{.App.Name}}/stop" hx-target="#action-result" hx-swap="innerHTML" class="secondary">
+        Stop
+    </button>
+    <button hx-post="/apps/{{.App.Name}}/restart" hx-target="#action-result" hx-swap="innerHTML" class="contrast">
+        Restart
+    </button>
+    <a href="/apps/{{.App.Name}}/logs" role="button" class="outline">View Logs</a>
+</div>
+
+<p style="margin-top: 1rem;"><a href="/apps">&larr; Back to Apps</a></p>
+{{end}}
