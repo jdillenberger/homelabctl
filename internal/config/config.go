@@ -74,8 +74,6 @@ type AlertsConfig struct {
 type AlertChannelsConfig struct {
 	Webhook *WebhookChannelConfig `mapstructure:"webhook" yaml:"webhook,omitempty"`
 	Ntfy    *NtfyChannelConfig    `mapstructure:"ntfy" yaml:"ntfy,omitempty"`
-	Gotify  *GotifyChannelConfig  `mapstructure:"gotify" yaml:"gotify,omitempty"`
-	Email   *EmailChannelConfig   `mapstructure:"email" yaml:"email,omitempty"`
 }
 
 type WebhookChannelConfig struct {
@@ -85,20 +83,6 @@ type WebhookChannelConfig struct {
 type NtfyChannelConfig struct {
 	URL   string `mapstructure:"url" yaml:"url"`
 	Token string `mapstructure:"token" yaml:"token,omitempty"`
-}
-
-type GotifyChannelConfig struct {
-	URL   string `mapstructure:"url" yaml:"url"`
-	Token string `mapstructure:"token" yaml:"token"`
-}
-
-type EmailChannelConfig struct {
-	Host     string `mapstructure:"host" yaml:"host"`
-	Port     int    `mapstructure:"port" yaml:"port"`
-	From     string `mapstructure:"from" yaml:"from"`
-	To       string `mapstructure:"to" yaml:"to"`
-	Username string `mapstructure:"username" yaml:"username,omitempty"`
-	Password string `mapstructure:"password" yaml:"password,omitempty"`
 }
 
 type HealthConfig struct {

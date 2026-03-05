@@ -12,7 +12,6 @@ import (
 	"github.com/jdillenberger/homelabctl/internal/app"
 	"github.com/jdillenberger/homelabctl/internal/config"
 	"github.com/jdillenberger/homelabctl/internal/exec"
-	"github.com/jdillenberger/homelabctl/internal/health"
 	"github.com/jdillenberger/homelabctl/internal/wizard"
 	"github.com/jdillenberger/homelabctl/templates"
 )
@@ -95,7 +94,6 @@ func init() {
 	appsLogsCmd.Flags().BoolP("follow", "f", false, "Follow log output")
 	appsLogsCmd.Flags().IntP("lines", "n", 100, "Number of lines to show")
 	appsUpdateCmd.Flags().Bool("all", false, "Update all deployed apps")
-	appsHealthCmd.Flags().Bool("history", false, "Show recent health check history")
 	appsHealthCmd.ValidArgsFunction = completeDeployedApps
 
 	// Top-level "logs" shortcut (alias for "apps logs")
@@ -605,38 +603,6 @@ var appsHealthCmd = &cobra.Command{
 		cfg, err := config.Load()
 		if err != nil {
 			return err
-		}
-
-		showHistory, _ := cmd.Flags().GetBool("history")
-
-		if showHistory {
-			monitor := health.NewMonitor(cfg.DataDir, cfg.Health.MaxHistory)
-			records, err := monitor.LoadHistory()
-			if err != nil {
-				return err
-			}
-			if len(records) == 0 {
-				fmt.Println("No health check history.")
-				return nil
-			}
-
-			// Show last 10 records
-			start := 0
-			if len(records) > 10 {
-				start = len(records) - 10
-			}
-
-			if jsonOutput {
-				return outputJSON(records[start:])
-			}
-
-			for _, rec := range records[start:] {
-				fmt.Printf("--- %s ---\n", rec.Timestamp.Format("2006-01-02 15:04:05"))
-				for _, r := range rec.Results {
-					fmt.Printf("  %-20s %s  %s\n", r.App, r.Status, r.Detail)
-				}
-			}
-			return nil
 		}
 
 		mgr, err := newManager()

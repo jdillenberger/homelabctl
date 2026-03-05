@@ -42,10 +42,9 @@ func (h *Handler) Register(e *echo.Echo) {
 	e.POST("/apps/:name/restart", h.AppRestart)
 	e.GET("/apps/:name/logs", h.AppLogs)
 
-	// Fleet
+	// Fleet (discovery-only)
 	e.GET("/fleet", h.HandleFleetPage)
 	e.GET("/api/fleet", h.HandleFleetAPI)
-	e.POST("/api/fleet/deploy", h.HandleFleetDeploy)
 
 	// Backups
 	e.GET("/backups", h.HandleBackupPage)
@@ -61,10 +60,7 @@ func (h *Handler) Register(e *echo.Echo) {
 
 	// API
 	e.GET("/api/health", h.APIHealth)
-	e.GET("/api/health/history", h.APIHealthHistory)
 	e.GET("/api/stats", h.APIStats)
 	e.GET("/api/apps", h.APIApps)
 
-	// Fleet run
-	e.POST("/api/fleet/run", h.HandleFleetRun)
 }

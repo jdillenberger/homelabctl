@@ -11,17 +11,19 @@ import (
 
 // AppMeta holds metadata from a template's app.yaml.
 type AppMeta struct {
-	Name         string          `yaml:"name"`
-	Description  string          `yaml:"description"`
-	Category     string          `yaml:"category"`
-	Version      string          `yaml:"version"`
-	Ports        []PortMapping   `yaml:"ports"`
-	Volumes      []VolumeMapping `yaml:"volumes"`
-	Values       []Value         `yaml:"values"`
-	Dependencies []string        `yaml:"dependencies"`
-	HealthCheck  *HealthCheck    `yaml:"health_check"`
-	Backup       *BackupMeta     `yaml:"backup"`
-	Requirements *Requirements   `yaml:"requirements"`
+	Name           string          `yaml:"name"`
+	Description    string          `yaml:"description"`
+	Category       string          `yaml:"category"`
+	Version        string          `yaml:"version"`
+	Ports          []PortMapping   `yaml:"ports"`
+	Volumes        []VolumeMapping `yaml:"volumes"`
+	Values         []Value         `yaml:"values"`
+	Dependencies   []string        `yaml:"dependencies"`
+	HealthCheck    *HealthCheck    `yaml:"health_check"`
+	Backup         *BackupMeta     `yaml:"backup"`
+	Requirements   *Requirements   `yaml:"requirements"`
+	PostDeployInfo *PostDeployInfo  `yaml:"post_deploy_info"`
+	Hooks          *HooksMeta      `yaml:"hooks"`
 }
 
 type PortMapping struct {
@@ -62,6 +64,28 @@ type Requirements struct {
 	MinRAM  string   `yaml:"min_ram"`
 	MinDisk string   `yaml:"min_disk"`
 	Arch    []string `yaml:"arch"`
+}
+
+// PostDeployInfo holds information displayed after a successful deployment.
+type PostDeployInfo struct {
+	AccessURL   string   `yaml:"access_url"`   // Go template, e.g. "http://{{.hostname}}.{{.domain}}:{{.web_port}}"
+	Credentials string   `yaml:"credentials"`  // e.g. "admin / value of admin_password"
+	Notes       []string `yaml:"notes"`         // First-time setup steps
+}
+
+// HooksMeta defines lifecycle hooks for an app.
+type HooksMeta struct {
+	PostDeploy []Hook `yaml:"post_deploy"`
+	PreRemove  []Hook `yaml:"pre_remove"`
+}
+
+// Hook defines a single lifecycle hook action.
+type Hook struct {
+	Type    string `yaml:"type"`    // "http" or "exec"
+	URL     string `yaml:"url"`     // For http hooks: URL (Go template)
+	Method  string `yaml:"method"`  // For http hooks: HTTP method (default GET)
+	Body    string `yaml:"body"`    // For http hooks: request body (Go template)
+	Command string `yaml:"command"` // For exec hooks: shell command (Go template)
 }
 
 // Registry manages available app templates.

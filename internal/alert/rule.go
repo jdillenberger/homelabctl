@@ -4,20 +4,12 @@ package alert
 type RuleType string
 
 const (
-	RuleTypeDiskFull     RuleType = "disk-full"
-	RuleTypeHighCPU      RuleType = "high-cpu"
-	RuleTypeHighMemory   RuleType = "high-memory"
-	RuleTypeHighTemp     RuleType = "high-temp"
 	RuleTypeAppDown      RuleType = "app-down"
 	RuleTypeBackupFailed RuleType = "backup-failed"
 )
 
 // ValidRuleTypes lists all valid rule types.
 var ValidRuleTypes = []RuleType{
-	RuleTypeDiskFull,
-	RuleTypeHighCPU,
-	RuleTypeHighMemory,
-	RuleTypeHighTemp,
 	RuleTypeAppDown,
 	RuleTypeBackupFailed,
 }

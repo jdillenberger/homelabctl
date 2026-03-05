@@ -13,17 +13,6 @@ import (
 	"github.com/jdillenberger/homelabctl/internal/config"
 )
 
-// SystemStats holds the stats values needed for rule evaluation.
-type SystemStats struct {
-	CPUPercent  float64
-	MemPercent  float64
-	MemUsedGB   string
-	MemTotalGB  string
-	DiskPercent float64
-	DiskUsedGB  string
-	DiskTotalGB string
-}
-
 // Manager evaluates alert rules and dispatches notifications.
 type Manager struct {
 	store            *Store
@@ -51,16 +40,6 @@ func (m *Manager) RegisterNotifiers(channels config.AlertChannelsConfig) {
 	if channels.Ntfy != nil && channels.Ntfy.URL != "" {
 		m.notifiers["ntfy"] = NewNtfyNotifier(channels.Ntfy.URL, channels.Ntfy.Token)
 	}
-	if channels.Gotify != nil && channels.Gotify.URL != "" {
-		m.notifiers["gotify"] = NewGotifyNotifier(channels.Gotify.URL, channels.Gotify.Token)
-	}
-	if channels.Email != nil && channels.Email.Host != "" {
-		m.notifiers["email"] = NewEmailNotifier(
-			channels.Email.Host, channels.Email.Port,
-			channels.Email.From, channels.Email.To,
-			channels.Email.Username, channels.Email.Password,
-		)
-	}
 }
 
 // Store returns the underlying alert store.
@@ -68,8 +47,8 @@ func (m *Manager) Store() *Store {
 	return m.store
 }
 
-// Evaluate checks rules against current stats and health results, firing alerts as needed.
-func (m *Manager) Evaluate(stats *SystemStats, healthResults []app.HealthResult) {
+// Evaluate checks rules against health results, firing alerts as needed.
+func (m *Manager) Evaluate(healthResults []app.HealthResult) {
 	rules, err := m.store.LoadRules()
 	if err != nil {
 		slog.Error("Failed to load alert rules", "error", err)
@@ -80,32 +59,15 @@ func (m *Manager) Evaluate(stats *SystemStats, healthResults []app.HealthResult)
 		if !rule.Enabled {
 			continue
 		}
-		m.evaluateRule(rule, stats, healthResults)
+		m.evaluateRule(rule, healthResults)
 	}
 }
 
-func (m *Manager) evaluateRule(rule Rule, stats *SystemStats, healthResults []app.HealthResult) {
+func (m *Manager) evaluateRule(rule Rule, healthResults []app.HealthResult) {
 	var fired bool
 	var message, detail string
 
 	switch rule.Type {
-	case RuleTypeDiskFull:
-		if stats != nil && stats.DiskPercent >= rule.Threshold {
-			fired = true
-			message = fmt.Sprintf("Disk usage at %.1f%% (threshold: %.0f%%)", stats.DiskPercent, rule.Threshold)
-			detail = fmt.Sprintf("Used: %s / %s GB", stats.DiskUsedGB, stats.DiskTotalGB)
-		}
-	case RuleTypeHighCPU:
-		if stats != nil && stats.CPUPercent >= rule.Threshold {
-			fired = true
-			message = fmt.Sprintf("CPU usage at %.1f%% (threshold: %.0f%%)", stats.CPUPercent, rule.Threshold)
-		}
-	case RuleTypeHighMemory:
-		if stats != nil && stats.MemPercent >= rule.Threshold {
-			fired = true
-			message = fmt.Sprintf("Memory usage at %.1f%% (threshold: %.0f%%)", stats.MemPercent, rule.Threshold)
-			detail = fmt.Sprintf("Used: %s / %s GB", stats.MemUsedGB, stats.MemTotalGB)
-		}
 	case RuleTypeAppDown:
 		for _, hr := range healthResults {
 			if rule.App != "" && hr.App != rule.App {

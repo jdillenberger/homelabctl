@@ -17,7 +17,6 @@ import (
 	"github.com/jdillenberger/homelabctl/internal/backup"
 	"github.com/jdillenberger/homelabctl/internal/config"
 	"github.com/jdillenberger/homelabctl/internal/exec"
-	"github.com/jdillenberger/homelabctl/internal/health"
 	"github.com/jdillenberger/homelabctl/internal/mdns"
 	"github.com/jdillenberger/homelabctl/internal/scheduler"
 	"github.com/jdillenberger/homelabctl/internal/web"
@@ -140,9 +139,8 @@ var serveCmd = &cobra.Command{
 			}
 		}
 
-		// Register health check monitoring job
+		// Register health check job (checks app health, evaluates alert rules)
 		if cfg.Health.Enabled {
-			healthMonitor := health.NewMonitor(cfg.DataDir, cfg.Health.MaxHistory)
 			healthChecker := app.NewHealthChecker()
 			compose := app.NewCompose(runner, cfg.Docker.ComposeCommand)
 
@@ -164,12 +162,8 @@ var serveCmd = &cobra.Command{
 					results = append(results, result)
 				}
 
-				if err := healthMonitor.Record(results); err != nil {
-					slog.Error("Health check: failed to record results", "error", err)
-				}
-
 				if alertMgr != nil {
-					alertMgr.Evaluate(nil, results)
+					alertMgr.Evaluate(results)
 				}
 			}
 			if err := sched.Add(scheduler.Job{
@@ -204,7 +198,7 @@ var serveCmd = &cobra.Command{
 					results = append(results, result)
 				}
 
-				alertMgr.Evaluate(nil, results)
+				alertMgr.Evaluate(results)
 			}
 			if err := sched.Add(scheduler.Job{
 				Name:     "alert-monitor",

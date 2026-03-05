@@ -1,38 +1,59 @@
 {{template "base.html" .}}
 
-{{define "title"}}Dashboard - homelabctl{{end}}
+{{define "title"}}{{.Hostname}} - homelabctl{{end}}
 
 {{define "content"}}
-<h2>Dashboard</h2>
-<p>Host: <strong>{{.Hostname}}</strong></p>
+<h2>{{.Hostname}}.{{.Domain}}</h2>
 
-<h3 class="section-title">System Stats</h3>
-<div id="stats-panel" hx-get="/stats/partial" hx-trigger="every 5s" hx-swap="innerHTML">
+{{if .ShowStats}}
+<div id="stats-panel" hx-get="/stats/partial" hx-trigger="every 10s" hx-swap="innerHTML">
     {{template "stats_partial.html" .Stats}}
 </div>
+{{end}}
 
-<h3 class="section-title">Deployed Apps</h3>
-{{if .DeployedApps}}
+<h3 class="section-title">Apps</h3>
+{{if .Apps}}
 <div class="apps-grid">
-    {{range .DeployedApps}}
+    {{range .Apps}}
     <div class="app-card">
-        <h4><a href="/apps/{{.Name}}">{{.Name}}</a></h4>
-        <p>
-            <span class="badge badge-deployed">deployed</span>
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+            <h4 style="margin:0;">
+                {{if .AccessURL}}<a href="{{.AccessURL}}" target="_blank" rel="noopener">{{.Name}}</a>
+                {{else}}<a href="/apps/{{.Name}}">{{.Name}}</a>{{end}}
+            </h4>
+            {{if eq .Health "healthy"}}<span class="badge badge-running">healthy</span>
+            {{else if eq .Health "unhealthy"}}<span class="badge badge-stopped">down</span>
+            {{else}}<span class="badge badge-available">unknown</span>{{end}}
+        </div>
+        {{if .Description}}<p style="margin:0.5rem 0 0.25rem;"><small>{{.Description}}</small></p>{{end}}
+        <p style="margin:0;">
             {{if .Version}}<small>v{{.Version}}</small>{{end}}
+            {{if .AccessURL}}<small> &mdash; <a href="{{.AccessURL}}" target="_blank" rel="noopener">{{.AccessURL}}</a></small>{{end}}
         </p>
-        <p><small>Deployed: {{.DeployedAt.Format "2006-01-02 15:04"}}</small></p>
     </div>
     {{end}}
 </div>
 {{else}}
-<p>No apps deployed yet. <a href="/apps">Browse available templates</a>.</p>
+<p>No apps deployed yet. <a href="/apps">Browse available templates</a> or run <code>homelabctl deploy &lt;app&gt;</code>.</p>
+{{end}}
+
+{{if .Peers}}
+<h3 class="section-title">Other Servers</h3>
+<div class="apps-grid">
+    {{range .Peers}}
+    <div class="app-card">
+        <h4 style="margin:0;"><a href="{{.DashURL}}" target="_blank" rel="noopener">{{.Hostname}}</a></h4>
+        {{if .Apps}}<p style="margin:0.5rem 0 0;"><small>Apps: {{range $i, $a := .Apps}}{{if $i}}, {{end}}{{$a}}{{end}}</small></p>{{end}}
+    </div>
+    {{end}}
+</div>
 {{end}}
 
 <h3 class="section-title">Quick Actions</h3>
 <div class="quick-actions">
-    <a href="/apps" role="button">Browse Apps</a>
-    <a href="/api/health" role="button" class="outline">Health Check</a>
-    <a href="/api/stats" role="button" class="outline">JSON Stats</a>
+    <a href="/apps" role="button">Browse Templates</a>
+    <a href="/backups" role="button" class="outline">Backups</a>
+    <a href="/alerts" role="button" class="outline">Alerts</a>
+    <a href="/settings" role="button" class="outline">Settings</a>
 </div>
 {{end}}

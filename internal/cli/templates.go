@@ -20,6 +20,7 @@ func init() {
 	templatesCmd.AddCommand(templatesExportCmd)
 	templatesCmd.AddCommand(templatesDeleteCmd)
 	templatesCmd.AddCommand(templatesPathCmd)
+	templatesCmd.AddCommand(templatesNewCmd)
 
 	templatesExportCmd.Flags().Bool("force", false, "Overwrite existing local template")
 	templatesExportCmd.ValidArgsFunction = completeTemplateNames
@@ -191,6 +192,129 @@ var templatesDeleteCmd = &cobra.Command{
 		}
 
 		fmt.Printf("Removed local template %s.\n", templateName)
+		return nil
+	},
+}
+
+var templatesNewCmd = &cobra.Command{
+	Use:   "new <name>",
+	Short: "Scaffold a new app template",
+	Long:  "Create a skeleton template in the local templates directory with app.yaml, docker-compose.yml.tmpl, and .env.tmpl.",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cfg, err := config.Load()
+		if err != nil {
+			return err
+		}
+
+		name := args[0]
+		destDir := filepath.Join(cfg.TemplatesDir, name)
+
+		if _, err := os.Stat(destDir); err == nil {
+			return fmt.Errorf("template %q already exists at %s", name, destDir)
+		}
+
+		if err := os.MkdirAll(destDir, 0o755); err != nil {
+			return fmt.Errorf("creating template directory: %w", err)
+		}
+
+		appYAML := fmt.Sprintf(`name: %s
+description: "TODO: Add description"
+category: "custom"
+version: "1.0.0"
+
+ports:
+  - host: 8080
+    container: 8080
+    protocol: tcp
+    description: "Web UI"
+    value_name: web_port
+
+volumes:
+  - name: data
+    container: /data
+    description: "Application data"
+
+values:
+  - name: web_port
+    description: "Web UI port"
+    default: "8080"
+    required: true
+
+health_check:
+  url: "http://localhost:{{.web_port}}"
+  interval: "30s"
+
+# backup:
+#   paths: []
+#   pre_hook: ""
+#   post_hook: ""
+
+# post_deploy_info:
+#   access_url: "http://{{.hostname}}.{{.domain}}:{{.web_port}}"
+#   credentials: "See the app documentation"
+#   notes:
+#     - "Complete the initial setup wizard"
+
+# hooks:
+#   post_deploy:
+#     - type: exec
+#       command: "echo 'Deployed {{.app_name}}'"
+`, name)
+
+		composeTmpl := fmt.Sprintf(`services:
+  %s:
+    image: TODO_IMAGE:latest
+    container_name: %s
+    restart: unless-stopped
+    ports:
+      - "{{.web_port}}:8080"
+    volumes:
+      - {{.data_dir}}/data:/data
+    networks:
+      - {{.network}}
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    pids_limit: 256
+    # mem_limit: 512m
+    # cpus: 1.0
+
+networks:
+  {{.network}}:
+    external: true
+`, name, name)
+
+		envTmpl := `# Environment variables for {{.app_name}}
+TZ={{.timezone}}
+`
+
+		files := map[string]string{
+			"app.yaml":               appYAML,
+			"docker-compose.yml.tmpl": composeTmpl,
+			".env.tmpl":              envTmpl,
+		}
+
+		for fname, content := range files {
+			fpath := filepath.Join(destDir, fname)
+			if err := os.WriteFile(fpath, []byte(content), 0o644); err != nil {
+				return fmt.Errorf("writing %s: %w", fname, err)
+			}
+		}
+
+		fmt.Printf("Created template scaffold at %s/\n", destDir)
+		fmt.Println("\nFiles created:")
+		fmt.Println("  app.yaml                  - Template metadata (edit this first)")
+		fmt.Println("  docker-compose.yml.tmpl   - Docker Compose template")
+		fmt.Println("  .env.tmpl                 - Environment variables template")
+		fmt.Println("\nNext steps:")
+		fmt.Printf("  1. Edit %s/app.yaml with your app's metadata\n", destDir)
+		fmt.Printf("  2. Edit %s/docker-compose.yml.tmpl with your app's compose config\n", destDir)
+		fmt.Printf("  3. Deploy with: homelabctl deploy %s\n", name)
 		return nil
 	},
 }

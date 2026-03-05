@@ -21,9 +21,9 @@ func init() {
 	alertsCmd.AddCommand(alertsTestCmd)
 	alertsCmd.AddCommand(alertsHistoryCmd)
 
-	alertsAddCmd.Flags().String("type", "", "Rule type (disk-full, high-cpu, high-memory, high-temp, app-down, backup-failed)")
+	alertsAddCmd.Flags().String("type", "", "Rule type (app-down, backup-failed)")
 	alertsAddCmd.Flags().Float64("threshold", 0, "Threshold value (e.g. 90 for 90%)")
-	alertsAddCmd.Flags().String("channel", "", "Notification channel (webhook, ntfy, gotify, email)")
+	alertsAddCmd.Flags().String("channel", "", "Notification channel (webhook, ntfy)")
 	alertsAddCmd.Flags().String("app", "", "App name (for app-down rules)")
 	_ = alertsAddCmd.MarkFlagRequired("type")
 	_ = alertsAddCmd.MarkFlagRequired("channel")

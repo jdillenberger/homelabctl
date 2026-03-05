@@ -2,11 +2,15 @@ package handlers
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 
 	"github.com/jdillenberger/homelabctl/internal/app"
+	"github.com/jdillenberger/homelabctl/internal/backup"
 	"github.com/jdillenberger/homelabctl/internal/config"
 )
 
@@ -48,9 +52,58 @@ func (h *Handler) HandleBackupCreate(c echo.Context) error {
 		return c.HTML(http.StatusOK, `<p style="color:red;">Backups are disabled in configuration.</p>`)
 	}
 
-	// TODO: Wire up to actual borg/borgmatic backup execution.
-	return c.HTML(http.StatusOK, fmt.Sprintf(
-		`<p style="color:green;">Manual backup triggered for repo %s. Check logs for progress.</p>`,
-		h.cfg.Backup.BorgRepo,
-	))
+	deployed, err := h.manager.ListDeployed()
+	if err != nil {
+		return c.HTML(http.StatusOK, fmt.Sprintf(
+			`<p style="color:red;">Failed to list deployed apps: %s</p>`, err))
+	}
+
+	borg := backup.NewBorg(h.runner)
+	registry := h.manager.Registry()
+	var succeeded, failed []string
+
+	for _, appName := range deployed {
+		configFile := backup.ConfigPath(h.cfg.AppsDir, appName)
+		if _, statErr := os.Stat(configFile); os.IsNotExist(statErr) {
+			continue
+		}
+
+		meta, _ := registry.Get(appName)
+
+		// Run pre-hook if defined.
+		if meta != nil && meta.Backup != nil && meta.Backup.PreHook != "" {
+			if _, hookErr := h.runner.Run("sh", "-c", meta.Backup.PreHook); hookErr != nil {
+				slog.Error("Backup pre-hook failed", "app", appName, "error", hookErr)
+				failed = append(failed, appName)
+				continue
+			}
+		}
+
+		if _, borgErr := borg.Create(configFile); borgErr != nil {
+			slog.Error("Backup failed", "app", appName, "error", borgErr)
+			failed = append(failed, appName)
+			continue
+		}
+
+		// Run post-hook if defined.
+		if meta != nil && meta.Backup != nil && meta.Backup.PostHook != "" {
+			if _, hookErr := h.runner.Run("sh", "-c", meta.Backup.PostHook); hookErr != nil {
+				slog.Error("Backup post-hook failed", "app", appName, "error", hookErr)
+			}
+		}
+
+		succeeded = append(succeeded, appName)
+	}
+
+	var msg strings.Builder
+	if len(succeeded) > 0 {
+		msg.WriteString(fmt.Sprintf(`<p style="color:green;">Backup succeeded for: %s</p>`, strings.Join(succeeded, ", ")))
+	}
+	if len(failed) > 0 {
+		msg.WriteString(fmt.Sprintf(`<p style="color:red;">Backup failed for: %s</p>`, strings.Join(failed, ", ")))
+	}
+	if len(succeeded) == 0 && len(failed) == 0 {
+		msg.WriteString(`<p>No apps with backup configuration found.</p>`)
+	}
+	return c.HTML(http.StatusOK, msg.String())
 }
