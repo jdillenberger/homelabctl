@@ -22,6 +22,10 @@ var doctorCmd = &cobra.Command{
 
 		results := doctor.CheckAll()
 
+		if jsonOutput {
+			return outputJSON(results)
+		}
+
 		allOK := true
 		for _, r := range results {
 			if r.Installed {

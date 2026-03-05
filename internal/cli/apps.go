@@ -36,8 +36,11 @@ func init() {
 	appsCmd.AddCommand(appsRestartCmd)
 	appsCmd.AddCommand(appsLogsCmd)
 	appsCmd.AddCommand(appsUpdateCmd)
+	appsCmd.AddCommand(appsInfoCmd)
 
 	appsListCmd.Flags().Bool("all", false, "Show all available templates (not just deployed)")
+	appsListCmd.Flags().String("filter", "", "Filter apps by name or description substring")
+	appsListCmd.Flags().String("category", "", "Filter apps by category")
 	appsDeployCmd.Flags().StringP("values", "f", "", "YAML file with template values")
 	appsDeployCmd.Flags().StringSlice("set", nil, "Set values (key=value)")
 	appsDeployCmd.Flags().Bool("dry-run", false, "Show rendered files without deploying")
@@ -69,21 +72,58 @@ var appsListCmd = &cobra.Command{
 		}
 
 		showAll, _ := cmd.Flags().GetBool("all")
+		filter, _ := cmd.Flags().GetString("filter")
+		category, _ := cmd.Flags().GetString("category")
+		filterLower := strings.ToLower(filter)
 
 		if showAll {
-			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "NAME\tCATEGORY\tDESCRIPTION\tSTATUS")
+			type appListEntry struct {
+				Name        string `json:"name"`
+				Category    string `json:"category"`
+				Description string `json:"description"`
+				Status      string `json:"status"`
+			}
+
 			deployed, _ := mgr.ListDeployed()
 			deployedSet := make(map[string]bool)
 			for _, d := range deployed {
 				deployedSet[d] = true
 			}
+
+			var entries []appListEntry
 			for _, meta := range mgr.Registry().All() {
+				// Apply filters
+				if filter != "" {
+					nameLower := strings.ToLower(meta.Name)
+					descLower := strings.ToLower(meta.Description)
+					if !strings.Contains(nameLower, filterLower) && !strings.Contains(descLower, filterLower) {
+						continue
+					}
+				}
+				if category != "" && !strings.EqualFold(meta.Category, category) {
+					continue
+				}
+
 				status := "available"
 				if deployedSet[meta.Name] {
 					status = "deployed"
 				}
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", meta.Name, meta.Category, meta.Description, status)
+				entries = append(entries, appListEntry{
+					Name:        meta.Name,
+					Category:    meta.Category,
+					Description: meta.Description,
+					Status:      status,
+				})
+			}
+
+			if jsonOutput {
+				return outputJSON(entries)
+			}
+
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			fmt.Fprintln(w, "NAME\tCATEGORY\tDESCRIPTION\tSTATUS")
+			for _, e := range entries {
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", e.Name, e.Category, e.Description, e.Status)
 			}
 			w.Flush()
 			return nil
@@ -95,21 +135,160 @@ var appsListCmd = &cobra.Command{
 		}
 
 		if len(deployed) == 0 {
+			if jsonOutput {
+				return outputJSON([]struct{}{})
+			}
 			fmt.Println("No apps deployed. Use 'homelabctl apps list --all' to see available templates.")
 			return nil
 		}
 
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(w, "NAME\tVERSION\tDEPLOYED")
+		type deployedEntry struct {
+			Name       string `json:"name"`
+			Version    string `json:"version"`
+			DeployedAt string `json:"deployed_at"`
+		}
+
+		var entries []deployedEntry
 		for _, name := range deployed {
-			info, err := mgr.GetDeployedInfo(name)
-			if err != nil {
-				fmt.Fprintf(w, "%s\t\terror reading info\n", name)
+			// Apply filter to deployed apps too
+			if filter != "" && !strings.Contains(strings.ToLower(name), filterLower) {
 				continue
 			}
-			fmt.Fprintf(w, "%s\t%s\t%s\n", info.Name, info.Version, info.DeployedAt.Format("2006-01-02 15:04"))
+
+			info, err := mgr.GetDeployedInfo(name)
+			if err != nil {
+				entries = append(entries, deployedEntry{Name: name, Version: "", DeployedAt: "error reading info"})
+				continue
+			}
+
+			// Apply category filter if registry has the template
+			if category != "" {
+				if meta, ok := mgr.Registry().Get(name); ok {
+					if !strings.EqualFold(meta.Category, category) {
+						continue
+					}
+				}
+			}
+
+			entries = append(entries, deployedEntry{
+				Name:       info.Name,
+				Version:    info.Version,
+				DeployedAt: info.DeployedAt.Format("2006-01-02 15:04"),
+			})
+		}
+
+		if jsonOutput {
+			return outputJSON(entries)
+		}
+
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		fmt.Fprintln(w, "NAME\tVERSION\tDEPLOYED")
+		for _, e := range entries {
+			fmt.Fprintf(w, "%s\t%s\t%s\n", e.Name, e.Version, e.DeployedAt)
 		}
 		w.Flush()
+		return nil
+	},
+}
+
+var appsInfoCmd = &cobra.Command{
+	Use:   "info <app>",
+	Short: "Show app template details",
+	Long:  "Display detailed information about an app template before deploying.",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		mgr, err := newManager()
+		if err != nil {
+			return err
+		}
+
+		meta, ok := mgr.Registry().Get(args[0])
+		if !ok {
+			return fmt.Errorf("unknown app template: %s", args[0])
+		}
+
+		if jsonOutput {
+			return outputJSON(meta)
+		}
+
+		fmt.Printf("App: %s\n", meta.Name)
+		fmt.Printf("Description: %s\n", meta.Description)
+		fmt.Printf("Category: %s\n", meta.Category)
+		fmt.Printf("Version: %s\n", meta.Version)
+
+		if len(meta.Ports) > 0 {
+			fmt.Println("\nPorts:")
+			for _, p := range meta.Ports {
+				fmt.Printf("  %d:%d/%s  %s\n", p.Host, p.Container, p.Protocol, p.Description)
+			}
+		}
+
+		if len(meta.Volumes) > 0 {
+			fmt.Println("\nVolumes:")
+			for _, v := range meta.Volumes {
+				fmt.Printf("  %-15s %s  (%s)\n", v.Name, v.Container, v.Description)
+			}
+		}
+
+		if len(meta.Values) > 0 {
+			fmt.Println("\nValues:")
+			for _, v := range meta.Values {
+				req := ""
+				if v.Required {
+					req = " [required]"
+				}
+				def := ""
+				if v.Default != "" {
+					def = fmt.Sprintf(" (default: %s)", v.Default)
+				}
+				secret := ""
+				if v.Secret {
+					secret = " [secret]"
+				}
+				autoGen := ""
+				if v.AutoGen != "" {
+					autoGen = fmt.Sprintf(" [auto: %s]", v.AutoGen)
+				}
+				fmt.Printf("  %-20s %s%s%s%s%s\n", v.Name, v.Description, def, req, secret, autoGen)
+			}
+		}
+
+		if len(meta.Dependencies) > 0 {
+			fmt.Printf("\nDependencies: %s\n", strings.Join(meta.Dependencies, ", "))
+		}
+
+		if meta.Requirements != nil {
+			fmt.Println("\nRequirements:")
+			if meta.Requirements.MinRAM != "" {
+				fmt.Printf("  Min RAM:  %s\n", meta.Requirements.MinRAM)
+			}
+			if meta.Requirements.MinDisk != "" {
+				fmt.Printf("  Min Disk: %s\n", meta.Requirements.MinDisk)
+			}
+			if len(meta.Requirements.Arch) > 0 {
+				fmt.Printf("  Arch:     %s\n", strings.Join(meta.Requirements.Arch, ", "))
+			}
+		}
+
+		if meta.HealthCheck != nil {
+			fmt.Println("\nHealth Check:")
+			fmt.Printf("  URL:      %s\n", meta.HealthCheck.URL)
+			fmt.Printf("  Interval: %s\n", meta.HealthCheck.Interval)
+		}
+
+		if meta.Backup != nil {
+			fmt.Println("\nBackup:")
+			if len(meta.Backup.Paths) > 0 {
+				fmt.Printf("  Paths: %s\n", strings.Join(meta.Backup.Paths, ", "))
+			}
+			if meta.Backup.PreHook != "" {
+				fmt.Printf("  Pre-hook:  %s\n", meta.Backup.PreHook)
+			}
+			if meta.Backup.PostHook != "" {
+				fmt.Printf("  Post-hook: %s\n", meta.Backup.PostHook)
+			}
+		}
+
 		return nil
 	},
 }
@@ -203,6 +382,25 @@ var appsStatusCmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
+
+			if jsonOutput {
+				type appStatus struct {
+					Name   string `json:"name"`
+					Status string `json:"status"`
+					Error  string `json:"error,omitempty"`
+				}
+				var statuses []appStatus
+				for _, name := range deployed {
+					status, err := mgr.Status(name)
+					if err != nil {
+						statuses = append(statuses, appStatus{Name: name, Error: err.Error()})
+					} else {
+						statuses = append(statuses, appStatus{Name: name, Status: status})
+					}
+				}
+				return outputJSON(statuses)
+			}
+
 			for _, name := range deployed {
 				fmt.Printf("=== %s ===\n", name)
 				status, err := mgr.Status(name)
@@ -219,6 +417,14 @@ var appsStatusCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+
+		if jsonOutput {
+			return outputJSON(map[string]string{
+				"name":   args[0],
+				"status": status,
+			})
+		}
+
 		fmt.Print(status)
 		return nil
 	},

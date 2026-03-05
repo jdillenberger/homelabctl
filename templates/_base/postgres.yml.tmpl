@@ -1,0 +1,17 @@
+  {{.service_name}}-db:
+    image: postgres:16-alpine
+    container_name: {{.service_name}}-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB={{.db_name}}
+      - POSTGRES_USER={{.db_user}}
+      - POSTGRES_PASSWORD={{index . "db_password"}}
+    volumes:
+      - {{index . "data_dir"}}/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{.db_user}}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - homelabctl-net

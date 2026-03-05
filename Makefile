@@ -13,7 +13,7 @@ LDFLAGS := -s -w \
 
 GOFLAGS := -trimpath
 
-.PHONY: all build build-pi build-pi32 run test lint fmt vet clean install help dev deploy-pi release
+.PHONY: all build build-pi build-pi32 run test test-integration lint fmt vet clean install help dev deploy-pi release docs
 
 all: build ## Build for current platform
 
@@ -32,6 +32,9 @@ run: build ## Run with ARGS (e.g., make run ARGS="apps list")
 test: ## Run tests
 	go test ./... -v -count=1
 
+test-integration: ## Run integration tests (requires Docker)
+	go test ./tests/ -v -count=1 -run TestIntegration
+
 lint: ## Run golangci-lint
 	golangci-lint run ./...
 
@@ -43,7 +46,7 @@ vet: ## Run go vet
 	go vet ./...
 
 clean: ## Remove build artifacts
-	rm -rf bin/
+	rm -rf bin/ man/ docs/
 
 install: build ## Install to /usr/local/bin
 	sudo cp bin/$(BINARY) /usr/local/bin/$(BINARY)
@@ -58,5 +61,9 @@ deploy-pi: build-pi ## Deploy to Pi (PI_HOST=pi@hostname)
 release: ## Build for all platforms with goreleaser
 	goreleaser build --snapshot --clean
 
+docs: build ## Generate man pages and markdown docs
+	./bin/$(BINARY) docs man
+	./bin/$(BINARY) docs markdown
+
 help: ## Show this help
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-18s\033[0m %s\n", $$1, $$2}'

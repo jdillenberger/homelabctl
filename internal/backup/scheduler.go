@@ -2,7 +2,7 @@ package backup
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 
 	"github.com/robfig/cron/v3"
 )
@@ -23,21 +23,21 @@ func NewScheduler() *Scheduler {
 // Start begins running the given backup function on the specified cron schedule.
 func (s *Scheduler) Start(schedule string, backupFunc func()) error {
 	id, err := s.cron.AddFunc(schedule, func() {
-		log.Println("Scheduled backup starting...")
+		slog.Info("Scheduled backup starting...")
 		backupFunc()
-		log.Println("Scheduled backup completed.")
+		slog.Info("Scheduled backup completed.")
 	})
 	if err != nil {
 		return fmt.Errorf("invalid cron schedule %q: %w", schedule, err)
 	}
 	s.entryID = id
 	s.cron.Start()
-	log.Printf("Backup scheduler started with schedule: %s\n", schedule)
+	slog.Info("Backup scheduler started", "schedule", schedule)
 	return nil
 }
 
 // Stop stops the scheduler gracefully.
 func (s *Scheduler) Stop() {
 	s.cron.Stop()
-	log.Println("Backup scheduler stopped.")
+	slog.Info("Backup scheduler stopped.")
 }

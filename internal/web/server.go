@@ -23,13 +23,19 @@ type Server struct {
 }
 
 // NewServer creates and configures a new web server.
-func NewServer(cfg *config.Config, manager *app.Manager, runner *exec.Runner) (*Server, error) {
+// When devMode is true, a livereload script is injected into pages.
+func NewServer(cfg *config.Config, manager *app.Manager, runner *exec.Runner, devMode bool) (*Server, error) {
 	e := echo.New()
 	e.HideBanner = true
 
 	// Middleware
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
+
+	// Livereload injection in dev mode
+	if devMode {
+		e.Use(livereloadMiddleware())
+	}
 
 	// Template renderer
 	renderer, err := templates.NewRenderer()

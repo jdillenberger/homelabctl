@@ -8,16 +8,18 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/jdillenberger/homelabctl/internal/config"
+	"github.com/jdillenberger/homelabctl/internal/logging"
 )
 
 var (
-	cfgFile   string
-	appsDir   string
-	verbose   bool
-	quiet     bool
-	version   = "dev"
-	commit    = "none"
-	buildDate = "unknown"
+	cfgFile    string
+	appsDir    string
+	verbose    bool
+	quiet      bool
+	jsonOutput bool
+	version    = "dev"
+	commit     = "none"
+	buildDate  = "unknown"
 )
 
 // SetVersionInfo sets build information from ldflags.
@@ -32,6 +34,9 @@ var rootCmd = &cobra.Command{
 	Short: "Homelab app deployment & management tool",
 	Long:  "homelabctl deploys and manages self-hosted apps on your homelab using Docker Compose.",
 	SilenceUsage: true,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		logging.Setup(verbose, quiet, jsonOutput)
+	},
 }
 
 // Execute runs the root command.
@@ -46,6 +51,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&appsDir, "apps-dir", "", "apps directory override")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
 	rootCmd.PersistentFlags().BoolVarP(&quiet, "quiet", "q", false, "suppress non-essential output")
+	rootCmd.PersistentFlags().BoolVar(&jsonOutput, "json", false, "output as JSON")
 
 	rootCmd.AddCommand(versionCmd)
 }
@@ -82,6 +88,14 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print version information",
 	Run: func(cmd *cobra.Command, args []string) {
+		if jsonOutput {
+			outputJSON(map[string]string{
+				"version": version,
+				"commit":  commit,
+				"date":    buildDate,
+			})
+			return
+		}
 		fmt.Printf("homelabctl %s (commit: %s, built: %s)\n", version, commit, buildDate)
 	},
 }

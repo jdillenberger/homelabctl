@@ -3,7 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -21,6 +21,7 @@ import (
 
 func init() {
 	serveCmd.Flags().IntP("port", "p", 0, "port to listen on (overrides config)")
+	serveCmd.Flags().Bool("dev", false, "enable development mode with livereload")
 	rootCmd.AddCommand(serveCmd)
 }
 
@@ -42,13 +43,15 @@ var serveCmd = &cobra.Command{
 			port = 8080
 		}
 
+		devMode, _ := cmd.Flags().GetBool("dev")
+
 		runner := &exec.Runner{Verbose: verbose}
 		mgr, err := newManager()
 		if err != nil {
 			return err
 		}
 
-		srv, err := web.NewServer(cfg, mgr, runner)
+		srv, err := web.NewServer(cfg, mgr, runner, devMode)
 		if err != nil {
 			return fmt.Errorf("creating server: %w", err)
 		}
@@ -57,12 +60,12 @@ var serveCmd = &cobra.Command{
 		if cfg.MDNS.Enabled {
 			deployedApps, err := mgr.ListDeployed()
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Warning: could not list deployed apps for mDNS: %v\n", err)
+				slog.Warn("Could not list deployed apps for mDNS", "error", err)
 				deployedApps = nil
 			}
 			shutdownMDNS, err := mdns.Advertise(cfg, version, deployedApps)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Warning: mDNS advertising failed: %v\n", err)
+				slog.Warn("mDNS advertising failed", "error", err)
 			} else {
 				defer shutdownMDNS()
 			}
@@ -74,7 +77,7 @@ var serveCmd = &cobra.Command{
 			err := scheduler.Start(cfg.Backup.Schedule, func() {
 				deployed, err := mgr.ListDeployed()
 				if err != nil {
-					log.Printf("Backup: failed to list deployed apps: %v\n", err)
+					slog.Error("Backup: failed to list deployed apps", "error", err)
 					return
 				}
 				borg := backup.NewBorg(runner)
@@ -89,25 +92,25 @@ var serveCmd = &cobra.Command{
 					// Run pre-hook if defined
 					if meta != nil && meta.Backup != nil && meta.Backup.PreHook != "" {
 						if _, hookErr := runner.Run("sh", "-c", meta.Backup.PreHook); hookErr != nil {
-							log.Printf("Backup: pre-hook for %s failed: %v\n", appName, hookErr)
+							slog.Error("Backup pre-hook failed", "app", appName, "error", hookErr)
 							continue
 						}
 					}
 
 					if _, borgErr := borg.Create(configFile); borgErr != nil {
-						log.Printf("Backup: failed for %s: %v\n", appName, borgErr)
+						slog.Error("Backup failed", "app", appName, "error", borgErr)
 					}
 
 					// Run post-hook if defined
 					if meta != nil && meta.Backup != nil && meta.Backup.PostHook != "" {
 						if _, hookErr := runner.Run("sh", "-c", meta.Backup.PostHook); hookErr != nil {
-							log.Printf("Backup: post-hook for %s failed: %v\n", appName, hookErr)
+							slog.Error("Backup post-hook failed", "app", appName, "error", hookErr)
 						}
 					}
 				}
 			})
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Warning: backup scheduler failed to start: %v\n", err)
+				slog.Warn("Backup scheduler failed to start", "error", err)
 			} else {
 				defer scheduler.Stop()
 			}
@@ -119,10 +122,13 @@ var serveCmd = &cobra.Command{
 
 		addr := fmt.Sprintf(":%d", port)
 		fmt.Printf("Starting web dashboard on http://0.0.0.0%s\n", addr)
+		if devMode {
+			fmt.Println("Development mode enabled (livereload active)")
+		}
 
 		go func() {
 			if err := srv.Start(addr); err != nil {
-				fmt.Fprintf(os.Stderr, "Server error: %v\n", err)
+				slog.Error("Server error", "error", err)
 			}
 		}()
 

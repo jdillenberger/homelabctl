@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -11,7 +10,6 @@ import (
 )
 
 func init() {
-	statsCmd.Flags().Bool("json", false, "Output as JSON")
 	rootCmd.AddCommand(statsCmd)
 }
 
@@ -25,14 +23,8 @@ var statsCmd = &cobra.Command{
 			return err
 		}
 
-		jsonOut, _ := cmd.Flags().GetBool("json")
-		if jsonOut {
-			data, err := json.MarshalIndent(s, "", "  ")
-			if err != nil {
-				return err
-			}
-			fmt.Println(string(data))
-			return nil
+		if jsonOutput {
+			return outputJSON(s)
 		}
 
 		// Human-readable output

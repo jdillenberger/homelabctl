@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 	"sort"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -83,6 +84,11 @@ func NewRegistry(tmplFS fs.FS) (*Registry, error) {
 
 	for _, entry := range entries {
 		if !entry.IsDir() {
+			continue
+		}
+
+		// Skip internal directories (partials, shared templates)
+		if strings.HasPrefix(entry.Name(), "_") {
 			continue
 		}
 

@@ -2,7 +2,7 @@ package mdns
 
 import (
 	"fmt"
-	"os"
+	"log/slog"
 	"strings"
 
 	"github.com/grandcat/zeroconf"
@@ -38,10 +38,10 @@ func Advertise(cfg *config.Config, version string, apps []string) (shutdown func
 		return nil, fmt.Errorf("registering mDNS service: %w", err)
 	}
 
-	fmt.Fprintf(os.Stderr, "mDNS: advertising %s on port %d\n", hostname, port)
+	slog.Debug("mDNS advertising started", "hostname", hostname, "port", port)
 
 	return func() {
 		server.Shutdown()
-		fmt.Fprintln(os.Stderr, "mDNS: stopped advertising")
+		slog.Debug("mDNS advertising stopped")
 	}, nil
 }
