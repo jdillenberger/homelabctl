@@ -1,7 +1,7 @@
 name: immich
 description: Self-hosted photo and video management
 category: media
-version: "release"
+version: "release"  # follows Immich's rolling release channel
 ports:
   - host: 2283
     container: 2283
@@ -19,6 +19,9 @@ values:
   - name: upload_location
     description: Path for uploaded photos/videos
     default: "./upload"
+  - name: timezone
+    description: Timezone
+    default: "UTC"
 dependencies:
   - docker
 volumes:
@@ -31,6 +34,9 @@ volumes:
   - name: model-cache
     container: /cache
     description: Machine learning model cache
+  - name: redis
+    container: /data
+    description: Redis data
 health_check:
   url: "http://localhost:{{.web_port}}"
   interval: 60s
@@ -38,6 +44,8 @@ backup:
   paths:
     - upload
     - db
+  pre_hook: "docker exec immich-db pg_dumpall -U immich > /tmp/immich-db-backup.sql"
+  post_hook: "rm -f /tmp/immich-db-backup.sql"
 requirements:
   min_ram: 2G
   min_disk: 20G

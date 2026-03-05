@@ -51,11 +51,20 @@ func (h *Handler) Register(e *echo.Echo) {
 	e.GET("/backups", h.HandleBackupPage)
 	e.POST("/backups/create", h.HandleBackupCreate)
 
+	// Alerts
+	e.GET("/alerts", h.HandleAlertsPage)
+	e.GET("/api/alerts/rules", h.APIAlertRules)
+	e.GET("/api/alerts/history", h.APIAlertHistory)
+
 	// Settings
 	e.GET("/settings", h.HandleSettingsPage)
 
 	// API
 	e.GET("/api/health", h.APIHealth)
+	e.GET("/api/health/history", h.APIHealthHistory)
 	e.GET("/api/stats", h.APIStats)
 	e.GET("/api/apps", h.APIApps)
+
+	// Fleet run
+	e.POST("/api/fleet/run", h.HandleFleetRun)
 }

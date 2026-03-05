@@ -1,14 +1,14 @@
 name: gitea
 description: Lightweight self-hosted Git hosting service
 category: dev
-version: "latest"
+version: "1.25.4"
 ports:
-  - host: 3000
+  - host: 3001
     container: 3000
     protocol: tcp
     description: Web UI
     value_name: web_port
-  - host: 22
+  - host: 2222
     container: 22
     protocol: tcp
     description: SSH
@@ -16,7 +16,7 @@ ports:
 values:
   - name: web_port
     description: Web UI port
-    default: "3000"
+    default: "3001"
   - name: ssh_port
     description: SSH port
     default: "2222"
@@ -24,6 +24,9 @@ values:
     description: PostgreSQL password
     secret: true
     auto_gen: password
+  - name: timezone
+    description: Timezone
+    default: "UTC"
 dependencies:
   - docker
 volumes:
@@ -40,6 +43,9 @@ backup:
   paths:
     - data
     - db
+  pre_hook: "docker exec gitea-db pg_dumpall -U gitea > /tmp/gitea-db-backup.sql"
+  post_hook: "rm -f /tmp/gitea-db-backup.sql"
 requirements:
   min_ram: 256M
+  min_disk: 5G
   arch: [amd64, arm64]

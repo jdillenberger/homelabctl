@@ -1,7 +1,7 @@
 name: nginx-proxy-manager
 description: Reverse proxy manager with Let's Encrypt support
 category: infra
-version: "latest"
+version: "2.13.7"
 ports:
   - host: 80
     container: 80
@@ -24,6 +24,13 @@ values:
     description: MariaDB password
     secret: true
     auto_gen: password
+  - name: db_root_password
+    description: MariaDB root password
+    secret: true
+    auto_gen: password
+  - name: timezone
+    description: Timezone
+    default: "UTC"
 dependencies:
   - docker
 volumes:

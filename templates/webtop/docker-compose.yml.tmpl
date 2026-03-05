@@ -8,15 +8,30 @@ services:
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ=Etc/UTC
+      - TZ={{index . "timezone"}}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
     volumes:
       - {{index . "data_dir"}}/config:/config
     shm_size: '1gb'
     security_opt:
       - seccomp:unconfined
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
-      - homelabctl-net
+      - {{index . "network"}}
 
 networks:
-  homelabctl-net:
+  {{index . "network"}}:
     external: true

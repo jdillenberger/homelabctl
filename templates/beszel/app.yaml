@@ -1,7 +1,7 @@
 name: beszel
 description: Lightweight server monitoring dashboard
 category: infra
-version: "latest"
+version: "0.18.4"
 ports:
   - host: 8090
     container: 8090
@@ -12,6 +12,11 @@ values:
   - name: web_port
     description: Web UI port
     default: "8090"
+  - name: timezone
+    description: Timezone
+    default: "UTC"
+dependencies:
+  - docker
 volumes:
   - name: data
     container: /beszel_data

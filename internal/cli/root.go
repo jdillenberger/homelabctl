@@ -82,6 +82,20 @@ func initConfig() {
 	if appsDir != "" {
 		viper.Set("apps_dir", appsDir)
 	}
+
+	// Validate config early so misconfigurations are caught immediately
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: could not load config for validation: %v\n", err)
+		return
+	}
+	if errs := config.Validate(cfg); len(errs) > 0 {
+		fmt.Fprintf(os.Stderr, "Warning: configuration issues detected:\n")
+		for _, e := range errs {
+			fmt.Fprintf(os.Stderr, "  - %s\n", e)
+		}
+		fmt.Fprintf(os.Stderr, "Run 'homelabctl config validate' for details.\n")
+	}
 }
 
 var versionCmd = &cobra.Command{

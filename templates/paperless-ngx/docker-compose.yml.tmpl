@@ -1,6 +1,6 @@
 services:
   paperless-ngx:
-    image: ghcr.io/paperless-ngx/paperless-ngx:latest
+    image: ghcr.io/paperless-ngx/paperless-ngx:2.20.9
     container_name: paperless-ngx
     restart: unless-stopped
     ports:
@@ -15,18 +15,36 @@ services:
       - PAPERLESS_ADMIN_USER={{index . "admin_user"}}
       - PAPERLESS_ADMIN_PASSWORD={{index . "admin_password"}}
       - PAPERLESS_URL=http://{{index . "hostname"}}.{{index . "domain"}}:{{index . "web_port"}}
+      - TZ={{index . "timezone"}}
     volumes:
       - {{index . "data_dir"}}/data:/usr/src/paperless/data
       - {{index . "data_dir"}}/media:/usr/src/paperless/media
       - {{index . "data_dir"}}/consume:/usr/src/paperless/consume
       - {{index . "data_dir"}}/export:/usr/src/paperless/export
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
     depends_on:
       paperless-ngx-db:
         condition: service_healthy
       paperless-ngx-redis:
         condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
-      - homelabctl-net
+      - {{index . "network"}}
 
   paperless-ngx-db:
     image: postgres:16-alpine
@@ -36,6 +54,7 @@ services:
       - POSTGRES_DB=paperless
       - POSTGRES_USER=paperless
       - POSTGRES_PASSWORD={{index . "db_password"}}
+      - TZ={{index . "timezone"}}
     volumes:
       - {{index . "data_dir"}}/db:/var/lib/postgresql/data
     healthcheck:
@@ -43,21 +62,48 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
-      - homelabctl-net
+      - {{index . "network"}}
 
   paperless-ngx-redis:
     image: redis:7-alpine
     container_name: paperless-ngx-redis
     restart: unless-stopped
+    environment:
+      - TZ={{index . "timezone"}}
+    volumes:
+      - {{index . "data_dir"}}/redis:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
-      - homelabctl-net
+      - {{index . "network"}}
 
 networks:
-  homelabctl-net:
+  {{index . "network"}}:
     external: true

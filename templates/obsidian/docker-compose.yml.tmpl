@@ -1,19 +1,73 @@
 services:
   obsidian:
-    image: couchdb:latest
+    image: lscr.io/linuxserver/obsidian:latest
     container_name: obsidian
     restart: unless-stopped
     ports:
-      - "{{index . "web_port"}}:5984"
+      - "{{index . "web_port"}}:3000"
     environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ={{index . "timezone"}}
+    volumes:
+      - {{index . "data_dir"}}/config:/config
+    shm_size: '1gb'
+    security_opt:
+      - seccomp:unconfined
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+    depends_on:
+      obsidian-db:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - {{index . "network"}}
+
+  obsidian-db:
+    image: couchdb:3.5.1
+    container_name: obsidian-db
+    restart: unless-stopped
+    ports:
+      - "{{index . "couchdb_port"}}:5984"
+    environment:
+      - TZ={{index . "timezone"}}
       - COUCHDB_USER=admin
       - COUCHDB_PASSWORD={{index . "admin_password"}}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5984/_up || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
     volumes:
-      - {{index . "data_dir"}}/data:/opt/couchdb/data
-      - {{index . "data_dir"}}/config:/opt/couchdb/etc/local.d
+      - {{index . "data_dir"}}/couchdb-data:/opt/couchdb/data
+      - {{index . "data_dir"}}/couchdb-config:/opt/couchdb/etc/local.d
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
-      - homelabctl-net
+      - {{index . "network"}}
 
 networks:
-  homelabctl-net:
+  {{index . "network"}}:
     external: true

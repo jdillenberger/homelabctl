@@ -1,9 +1,9 @@
 name: gitlab
 description: Full DevOps platform with Git hosting, CI/CD, and more
 category: dev
-version: "latest"
+version: "18.9.1"
 ports:
-  - host: 80
+  - host: 8929
     container: 80
     protocol: tcp
     description: HTTP
@@ -12,7 +12,7 @@ ports:
     container: 443
     protocol: tcp
     description: HTTPS
-  - host: 22
+  - host: 2224
     container: 22
     protocol: tcp
     description: SSH
@@ -31,6 +31,11 @@ values:
     description: GitLab root password
     secret: true
     auto_gen: password
+  - name: timezone
+    description: Timezone
+    default: "UTC"
+dependencies:
+  - docker
 volumes:
   - name: config
     container: /etc/gitlab

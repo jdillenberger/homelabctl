@@ -1,18 +1,37 @@
 services:
   adguard:
-    image: adguard/adguardhome:latest
+    image: adguard/adguardhome:v0.107.72
     container_name: adguard
     restart: unless-stopped
     ports:
       - "{{index . "web_port"}}:3000/tcp"
       - "{{index . "dns_port"}}:53/tcp"
       - "{{index . "dns_port"}}:53/udp"
+    environment:
+      - TZ={{index . "timezone"}}
+    deploy:
+      resources:
+        limits:
+          memory: 256M
     volumes:
       - {{index . "data_dir"}}/work:/opt/adguardhome/work
       - {{index . "data_dir"}}/conf:/opt/adguardhome/conf
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
     networks:
-      - homelabctl-net
+      - {{index . "network"}}
 
 networks:
-  homelabctl-net:
+  {{index . "network"}}:
     external: true

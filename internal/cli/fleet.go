@@ -22,10 +22,13 @@ func init() {
 	fleetCmd.AddCommand(fleetDiscoverCmd)
 	fleetCmd.AddCommand(fleetSyncCmd)
 	fleetCmd.AddCommand(fleetDeployCmd)
+	fleetCmd.AddCommand(fleetRunCmd)
 
 	fleetDiscoverCmd.Flags().DurationP("timeout", "t", 5*time.Second, "mDNS discovery timeout")
 	fleetDeployCmd.Flags().String("host", "", "Target hostname to deploy on")
 	_ = fleetDeployCmd.MarkFlagRequired("host")
+	fleetRunCmd.Flags().String("host", "", "Target hostname to run command on")
+	fleetRunCmd.Flags().Bool("all", false, "Run on all fleet hosts")
 }
 
 var fleetCmd = &cobra.Command{
@@ -250,6 +253,105 @@ var fleetDeployCmd = &cobra.Command{
 			}
 			_ = json.NewDecoder(resp.Body).Decode(&errResp)
 			return fmt.Errorf("deploy failed (HTTP %d): %s", resp.StatusCode, errResp.Error)
+		}
+
+		return nil
+	},
+}
+
+var fleetRunCmd = &cobra.Command{
+	Use:   "run <command> [args...]",
+	Short: "Run a command on remote fleet hosts",
+	Long:  "Execute a command on one or all fleet hosts via the HTTP API.",
+	Args:  cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		targetHost, _ := cmd.Flags().GetString("host")
+		runAll, _ := cmd.Flags().GetBool("all")
+
+		if targetHost == "" && !runAll {
+			return fmt.Errorf("specify --host <hostname> or --all")
+		}
+
+		fleetCfg, err := config.LoadFleetConfig()
+		if err != nil {
+			return fmt.Errorf("loading fleet config: %w", err)
+		}
+
+		command := args[0]
+		var cmdArgs []string
+		if len(args) > 1 {
+			cmdArgs = args[1:]
+		}
+
+		// Build list of target hosts
+		var targets []config.FleetHost
+		if runAll {
+			targets = fleetCfg.Hosts
+		} else {
+			for _, host := range fleetCfg.Hosts {
+				if host.Hostname == targetHost {
+					targets = append(targets, host)
+					break
+				}
+			}
+			if len(targets) == 0 {
+				return fmt.Errorf("host %q not found in fleet config", targetHost)
+			}
+		}
+
+		// Build request payload
+		reqBody := struct {
+			Command string   `json:"command"`
+			Args    []string `json:"args,omitempty"`
+		}{
+			Command: command,
+			Args:    cmdArgs,
+		}
+		payload, err := json.Marshal(reqBody)
+		if err != nil {
+			return fmt.Errorf("marshaling request: %w", err)
+		}
+
+		client := &http.Client{Timeout: 60 * time.Second}
+
+		for _, host := range targets {
+			if host.Address == "" {
+				fmt.Fprintf(os.Stderr, "=== %s === (no address, skipping)\n", host.Hostname)
+				continue
+			}
+
+			url := fmt.Sprintf("http://%s:%d/api/fleet/run", host.Address, host.Port)
+			req, err := http.NewRequest("POST", url, bytes.NewReader(payload))
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "=== %s === error creating request: %v\n", host.Hostname, err)
+				continue
+			}
+			req.Header.Set("Content-Type", "application/json")
+			if fleetCfg.Fleet.Secret != "" {
+				req.Header.Set("X-Fleet-Secret", fleetCfg.Fleet.Secret)
+			}
+
+			resp, err := client.Do(req)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "=== %s === error: %v\n", host.Hostname, err)
+				continue
+			}
+
+			var result struct {
+				Stdout   string `json:"stdout"`
+				Stderr   string `json:"stderr"`
+				ExitCode int    `json:"exit_code"`
+			}
+			_ = json.NewDecoder(resp.Body).Decode(&result)
+			resp.Body.Close()
+
+			fmt.Printf("=== %s (exit: %d) ===\n", host.Hostname, result.ExitCode)
+			if result.Stdout != "" {
+				fmt.Print(result.Stdout)
+			}
+			if result.Stderr != "" {
+				fmt.Fprintf(os.Stderr, "%s", result.Stderr)
+			}
 		}
 
 		return nil

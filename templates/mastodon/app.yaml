@@ -1,17 +1,25 @@
 name: mastodon
 description: Decentralized social network (Fediverse)
 category: social
-version: "latest"
+version: "v4.5.7"
 ports:
-  - host: 3000
+  - host: 3003
     container: 3000
     protocol: tcp
     description: Web UI
     value_name: web_port
+  - host: 4000
+    container: 4000
+    protocol: tcp
+    description: Streaming API
+    value_name: streaming_port
 values:
   - name: web_port
     description: Web UI port
-    default: "3000"
+    default: "3003"
+  - name: streaming_port
+    description: Streaming API port
+    default: "4000"
   - name: db_password
     description: PostgreSQL password
     secret: true
@@ -24,9 +32,32 @@ values:
     description: OTP secret
     secret: true
     auto_gen: password
+  - name: vapid_private_key
+    description: VAPID private key for Web Push notifications
+    secret: true
+    auto_gen: password
+  - name: vapid_public_key
+    description: VAPID public key for Web Push notifications
+    secret: true
+    auto_gen: password
+  - name: active_record_encryption_primary_key
+    description: Active Record encryption primary key
+    secret: true
+    auto_gen: password
+  - name: active_record_encryption_deterministic_key
+    description: Active Record encryption deterministic key
+    secret: true
+    auto_gen: password
+  - name: active_record_encryption_key_derivation_salt
+    description: Active Record encryption key derivation salt
+    secret: true
+    auto_gen: password
   - name: local_domain
     description: Local domain for the instance
     default: "mastodon.local"
+  - name: timezone
+    description: Timezone
+    default: "UTC"
 dependencies:
   - docker
 volumes:
@@ -36,6 +67,9 @@ volumes:
   - name: db
     container: /var/lib/postgresql/data
     description: PostgreSQL data
+  - name: redis
+    container: /data
+    description: Redis data
 health_check:
   url: "http://localhost:{{.web_port}}"
   interval: 60s
@@ -43,6 +77,9 @@ backup:
   paths:
     - public-system
     - db
+    - redis
+  pre_hook: "docker exec mastodon-db pg_dumpall -U mastodon > /tmp/mastodon-db-backup.sql"
+  post_hook: "rm -f /tmp/mastodon-db-backup.sql"
 requirements:
   min_ram: 2G
   min_disk: 10G

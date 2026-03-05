@@ -1,7 +1,7 @@
 name: nextcloud
 description: Self-hosted productivity and file sync platform
 category: productivity
-version: "latest"
+version: "32.0.6"
 ports:
   - host: 8080
     container: 80
@@ -33,6 +33,9 @@ values:
     description: Database user password
     secret: true
     auto_gen: password
+  - name: timezone
+    description: Timezone
+    default: "UTC"
 dependencies:
   - docker
 volumes:
@@ -49,7 +52,7 @@ backup:
   paths:
     - html
     - db
-  pre_hook: "docker exec nextcloud-db mariadb-dump -u root -p{{.db_password}} --all-databases > /tmp/nextcloud-db-backup.sql"
+  pre_hook: "docker exec nextcloud-db sh -c 'mariadb-dump -u root -p\"$MYSQL_ROOT_PASSWORD\" --all-databases' > /tmp/nextcloud-db-backup.sql"
   post_hook: "rm -f /tmp/nextcloud-db-backup.sql"
 requirements:
   min_ram: 512M

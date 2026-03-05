@@ -24,6 +24,9 @@ func NewCompose(runner *exec.Runner, composeCommand string) *Compose {
 
 func (c *Compose) cmdParts() (string, []string) {
 	parts := strings.Fields(c.command)
+	if len(parts) == 0 {
+		return "docker", []string{"compose"}
+	}
 	return parts[0], parts[1:]
 }
 

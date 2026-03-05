@@ -8,16 +8,30 @@ import (
 	"github.com/spf13/viper"
 )
 
+// DefaultTemplatesDir returns the default local templates directory.
+func DefaultTemplatesDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, ".homelabctl", "templates")
+}
+
 // Config holds the global homelabctl configuration.
 type Config struct {
-	Hostname string `mapstructure:"hostname" yaml:"hostname"`
-	AppsDir  string `mapstructure:"apps_dir" yaml:"apps_dir"`
-	DataDir  string `mapstructure:"data_dir" yaml:"data_dir"`
+	Hostname     string `mapstructure:"hostname" yaml:"hostname"`
+	AppsDir      string `mapstructure:"apps_dir" yaml:"apps_dir"`
+	DataDir      string `mapstructure:"data_dir" yaml:"data_dir"`
+	TemplatesDir string `mapstructure:"templates_dir" yaml:"templates_dir"`
 
 	Network NetworkConfig `mapstructure:"network" yaml:"network"`
 	Docker  DockerConfig  `mapstructure:"docker" yaml:"docker"`
 	MDNS    MDNSConfig    `mapstructure:"mdns" yaml:"mdns"`
 	Backup  BackupConfig  `mapstructure:"backup" yaml:"backup"`
+	Alerts  AlertsConfig  `mapstructure:"alerts" yaml:"alerts"`
+	Health  HealthConfig  `mapstructure:"health" yaml:"health"`
+	Updates UpdatesConfig `mapstructure:"updates" yaml:"updates"`
+	Prune   PruneConfig   `mapstructure:"prune" yaml:"prune"`
 
 	Integrations IntegrationsConfig `mapstructure:"integrations" yaml:"integrations"`
 }
@@ -50,6 +64,59 @@ type RetentionConfig struct {
 	KeepMonthly int `mapstructure:"keep_monthly" yaml:"keep_monthly"`
 }
 
+type AlertsConfig struct {
+	Enabled  bool                `mapstructure:"enabled" yaml:"enabled"`
+	Schedule string              `mapstructure:"schedule" yaml:"schedule"`
+	Cooldown string              `mapstructure:"cooldown" yaml:"cooldown"`
+	Channels AlertChannelsConfig `mapstructure:"channels" yaml:"channels"`
+}
+
+type AlertChannelsConfig struct {
+	Webhook *WebhookChannelConfig `mapstructure:"webhook" yaml:"webhook,omitempty"`
+	Ntfy    *NtfyChannelConfig    `mapstructure:"ntfy" yaml:"ntfy,omitempty"`
+	Gotify  *GotifyChannelConfig  `mapstructure:"gotify" yaml:"gotify,omitempty"`
+	Email   *EmailChannelConfig   `mapstructure:"email" yaml:"email,omitempty"`
+}
+
+type WebhookChannelConfig struct {
+	URL string `mapstructure:"url" yaml:"url"`
+}
+
+type NtfyChannelConfig struct {
+	URL   string `mapstructure:"url" yaml:"url"`
+	Token string `mapstructure:"token" yaml:"token,omitempty"`
+}
+
+type GotifyChannelConfig struct {
+	URL   string `mapstructure:"url" yaml:"url"`
+	Token string `mapstructure:"token" yaml:"token"`
+}
+
+type EmailChannelConfig struct {
+	Host     string `mapstructure:"host" yaml:"host"`
+	Port     int    `mapstructure:"port" yaml:"port"`
+	From     string `mapstructure:"from" yaml:"from"`
+	To       string `mapstructure:"to" yaml:"to"`
+	Username string `mapstructure:"username" yaml:"username,omitempty"`
+	Password string `mapstructure:"password" yaml:"password,omitempty"`
+}
+
+type HealthConfig struct {
+	Enabled    bool   `mapstructure:"enabled" yaml:"enabled"`
+	Schedule   string `mapstructure:"schedule" yaml:"schedule"`
+	MaxHistory int    `mapstructure:"max_history" yaml:"max_history"`
+}
+
+type UpdatesConfig struct {
+	Enabled  bool   `mapstructure:"enabled" yaml:"enabled"`
+	Schedule string `mapstructure:"schedule" yaml:"schedule"`
+}
+
+type PruneConfig struct {
+	Enabled  bool   `mapstructure:"enabled" yaml:"enabled"`
+	Schedule string `mapstructure:"schedule" yaml:"schedule"`
+}
+
 type IntegrationsConfig struct {
 	Keycloak          KeycloakConfig `mapstructure:"keycloak" yaml:"keycloak"`
 	Beszel            BeszelConfig   `mapstructure:"beszel" yaml:"beszel"`
@@ -76,9 +143,10 @@ type NPMConfig struct {
 func DefaultConfig() *Config {
 	hostname, _ := os.Hostname()
 	return &Config{
-		Hostname: hostname,
-		AppsDir:  "/opt/homelabctl/apps",
-		DataDir:  "/opt/homelabctl/data",
+		Hostname:     hostname,
+		AppsDir:      "/opt/homelabctl/apps",
+		DataDir:      "/opt/homelabctl/data",
+		TemplatesDir: DefaultTemplatesDir(),
 		Network: NetworkConfig{
 			Domain:  "local",
 			WebPort: 8080,
@@ -101,6 +169,24 @@ func DefaultConfig() *Config {
 				KeepMonthly: 6,
 			},
 		},
+		Alerts: AlertsConfig{
+			Enabled:  false,
+			Schedule: "*/5 * * * *",
+			Cooldown: "15m",
+		},
+		Health: HealthConfig{
+			Enabled:    false,
+			Schedule:   "*/2 * * * *",
+			MaxHistory: 1000,
+		},
+		Updates: UpdatesConfig{
+			Enabled:  false,
+			Schedule: "0 4 * * 0",
+		},
+		Prune: PruneConfig{
+			Enabled:  false,
+			Schedule: "0 5 * * 0",
+		},
 	}
 }
 
@@ -110,6 +196,7 @@ func SetDefaults() {
 	viper.SetDefault("hostname", d.Hostname)
 	viper.SetDefault("apps_dir", d.AppsDir)
 	viper.SetDefault("data_dir", d.DataDir)
+	viper.SetDefault("templates_dir", d.TemplatesDir)
 	viper.SetDefault("network.domain", d.Network.Domain)
 	viper.SetDefault("network.web_port", d.Network.WebPort)
 	viper.SetDefault("docker.compose_command", d.Docker.ComposeCommand)
@@ -122,6 +209,16 @@ func SetDefaults() {
 	viper.SetDefault("backup.retention.keep_daily", d.Backup.Retention.KeepDaily)
 	viper.SetDefault("backup.retention.keep_weekly", d.Backup.Retention.KeepWeekly)
 	viper.SetDefault("backup.retention.keep_monthly", d.Backup.Retention.KeepMonthly)
+	viper.SetDefault("alerts.enabled", d.Alerts.Enabled)
+	viper.SetDefault("alerts.schedule", d.Alerts.Schedule)
+	viper.SetDefault("alerts.cooldown", d.Alerts.Cooldown)
+	viper.SetDefault("health.enabled", d.Health.Enabled)
+	viper.SetDefault("health.schedule", d.Health.Schedule)
+	viper.SetDefault("health.max_history", d.Health.MaxHistory)
+	viper.SetDefault("updates.enabled", d.Updates.Enabled)
+	viper.SetDefault("updates.schedule", d.Updates.Schedule)
+	viper.SetDefault("prune.enabled", d.Prune.Enabled)
+	viper.SetDefault("prune.schedule", d.Prune.Schedule)
 }
 
 // Load reads the global config from viper into a Config struct.

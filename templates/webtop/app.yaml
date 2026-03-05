@@ -3,7 +3,7 @@ description: Full Linux desktop environment in the browser
 category: desktop
 version: "latest"
 ports:
-  - host: 3000
+  - host: 3005
     container: 3000
     protocol: tcp
     description: Web UI
@@ -11,10 +11,15 @@ ports:
 values:
   - name: web_port
     description: Web UI port
-    default: "3000"
+    default: "3005"
   - name: desktop_env
     description: Desktop environment (xfce, kde, mate, i3, openbox)
     default: "xfce"
+  - name: timezone
+    description: Timezone
+    default: "UTC"
+dependencies:
+  - docker
 volumes:
   - name: config
     container: /config
@@ -26,5 +31,5 @@ backup:
   paths:
     - config
 requirements:
-  min_ram: 1G
+  min_ram: 2G
   arch: [amd64, arm64]

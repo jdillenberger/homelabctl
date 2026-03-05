@@ -1,7 +1,7 @@
 name: paperless-ngx
 description: Document management system with OCR
 category: productivity
-version: "latest"
+version: "2.20.9"
 ports:
   - host: 8000
     container: 8000
@@ -27,6 +27,9 @@ values:
     description: Admin password
     secret: true
     auto_gen: password
+  - name: timezone
+    description: Timezone
+    default: "UTC"
 dependencies:
   - docker
 volumes:
@@ -45,6 +48,9 @@ volumes:
   - name: db
     container: /var/lib/postgresql/data
     description: PostgreSQL data
+  - name: redis
+    container: /data
+    description: Redis data
 health_check:
   url: "http://localhost:{{.web_port}}"
   interval: 60s
@@ -53,6 +59,8 @@ backup:
     - data
     - media
     - db
+  pre_hook: "docker exec paperless-ngx-db pg_dumpall -U paperless > /tmp/paperless-db-backup.sql"
+  post_hook: "rm -f /tmp/paperless-db-backup.sql"
 requirements:
   min_ram: 1G
   min_disk: 10G

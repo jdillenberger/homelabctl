@@ -1,9 +1,9 @@
 name: hedgedoc
 description: Collaborative real-time markdown editor
 category: productivity
-version: "latest"
+version: "1.10.7"
 ports:
-  - host: 3000
+  - host: 3002
     container: 3000
     protocol: tcp
     description: Web UI
@@ -11,7 +11,7 @@ ports:
 values:
   - name: web_port
     description: Web UI port
-    default: "3000"
+    default: "3002"
   - name: db_password
     description: PostgreSQL password
     secret: true
@@ -20,6 +20,9 @@ values:
     description: Session secret key
     secret: true
     auto_gen: password
+  - name: timezone
+    description: Timezone
+    default: "UTC"
 dependencies:
   - docker
 volumes:
@@ -36,6 +39,9 @@ backup:
   paths:
     - uploads
     - db
+  pre_hook: "docker exec hedgedoc-db pg_dumpall -U hedgedoc > /tmp/hedgedoc-db-backup.sql"
+  post_hook: "rm -f /tmp/hedgedoc-db-backup.sql"
 requirements:
   min_ram: 256M
+  min_disk: 2G
   arch: [amd64, arm64]

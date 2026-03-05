@@ -1,6 +1,6 @@
 services:
   gitea:
-    image: gitea/gitea:latest
+    image: gitea/gitea:1.25.4
     container_name: gitea
     restart: unless-stopped
     ports:
@@ -12,13 +12,31 @@ services:
       - GITEA__database__NAME=gitea
       - GITEA__database__USER=gitea
       - GITEA__database__PASSWD={{index . "db_password"}}
+      - TZ={{index . "timezone"}}
     volumes:
       - {{index . "data_dir"}}/data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     depends_on:
       gitea-db:
         condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
     networks:
-      - homelabctl-net
+      - {{index . "network"}}
 
   gitea-db:
     image: postgres:16-alpine
@@ -28,6 +46,7 @@ services:
       - POSTGRES_DB=gitea
       - POSTGRES_USER=gitea
       - POSTGRES_PASSWORD={{index . "db_password"}}
+      - TZ={{index . "timezone"}}
     volumes:
       - {{index . "data_dir"}}/db:/var/lib/postgresql/data
     healthcheck:
@@ -35,9 +54,21 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
     networks:
-      - homelabctl-net
+      - {{index . "network"}}
 
 networks:
-  homelabctl-net:
+  {{index . "network"}}:
     external: true

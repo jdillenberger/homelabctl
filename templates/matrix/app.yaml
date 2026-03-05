@@ -1,7 +1,7 @@
 name: matrix
 description: Matrix homeserver for decentralized messaging
 category: social
-version: "latest"
+version: "v1.148.0"
 ports:
   - host: 8008
     container: 8008
@@ -23,6 +23,9 @@ values:
     description: Shared secret for user registration
     secret: true
     auto_gen: password
+  - name: timezone
+    description: Timezone
+    default: "UTC"
 dependencies:
   - docker
 volumes:
@@ -39,6 +42,9 @@ backup:
   paths:
     - data
     - db
+  pre_hook: "docker exec matrix-db pg_dumpall -U synapse > /tmp/matrix-db-backup.sql"
+  post_hook: "rm -f /tmp/matrix-db-backup.sql"
 requirements:
-  min_ram: 512M
+  min_ram: 1G
+  min_disk: 5G
   arch: [amd64, arm64]

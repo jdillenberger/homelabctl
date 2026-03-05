@@ -111,7 +111,7 @@ func (r *TemplateRenderer) renderString(tmplStr string, values map[string]string
 		"replace":     strings.ReplaceAll,
 	}
 
-	tmpl, err := template.New("").Funcs(funcMap).Parse(tmplStr)
+	tmpl, err := template.New("").Option("missingkey=error").Funcs(funcMap).Parse(tmplStr)
 	if err != nil {
 		return "", fmt.Errorf("parsing template: %w", err)
 	}
@@ -125,7 +125,19 @@ func (r *TemplateRenderer) renderString(tmplStr string, values map[string]string
 }
 
 func genPassword() string {
-	b := make([]byte, 16)
-	rand.Read(b)
+	return genRandomHex(16)
+}
+
+// genLongSecret generates a 128-character hex secret (64 random bytes),
+// suitable for Rails secret_key_base and similar high-entropy secrets.
+func genLongSecret() string {
+	return genRandomHex(64)
+}
+
+func genRandomHex(nBytes int) string {
+	b := make([]byte, nBytes)
+	if _, err := rand.Read(b); err != nil {
+		panic(fmt.Sprintf("crypto/rand failed: %v", err))
+	}
 	return hex.EncodeToString(b)
 }

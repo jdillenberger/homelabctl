@@ -1,7 +1,7 @@
 name: keycloak
 description: Identity and access management / SSO server
 category: infra
-version: "latest"
+version: "26.5.4"
 ports:
   - host: 8443
     container: 8443
@@ -31,6 +31,9 @@ values:
   - name: https_port
     description: HTTPS port
     default: "8443"
+  - name: timezone
+    description: Timezone
+    default: "UTC"
 dependencies:
   - docker
 volumes:
@@ -38,11 +41,14 @@ volumes:
     container: /var/lib/postgresql/data
     description: PostgreSQL data
 health_check:
-  url: "https://localhost:{{.https_port}}"
+  url: "http://localhost:{{.http_port}}/health/ready"
   interval: 30s
 backup:
   paths:
     - db
+  pre_hook: "docker exec keycloak-db pg_dumpall -U keycloak > /tmp/keycloak-db-backup.sql"
+  post_hook: "rm -f /tmp/keycloak-db-backup.sql"
 requirements:
   min_ram: 512M
+  min_disk: 2G
   arch: [amd64, arm64]

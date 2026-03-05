@@ -12,6 +12,7 @@ import (
 	"github.com/jdillenberger/homelabctl/internal/app"
 	"github.com/jdillenberger/homelabctl/internal/config"
 	"github.com/jdillenberger/homelabctl/internal/exec"
+	"github.com/jdillenberger/homelabctl/internal/health"
 	"github.com/jdillenberger/homelabctl/internal/wizard"
 	"github.com/jdillenberger/homelabctl/templates"
 )
@@ -22,7 +23,36 @@ func newManager() (*app.Manager, error) {
 		return nil, err
 	}
 	runner := &exec.Runner{Verbose: verbose}
-	return app.NewManager(cfg, runner, templates.FS)
+	tmplFS := app.BuildTemplateFS(templates.FS, cfg.TemplatesDir)
+	return app.NewManager(cfg, runner, tmplFS)
+}
+
+// completeTemplateNames returns available template names for shell completion.
+func completeTemplateNames(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if len(args) != 0 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	mgr, err := newManager()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+	return mgr.Registry().List(), cobra.ShellCompDirectiveNoFileComp
+}
+
+// completeDeployedApps returns deployed app names for shell completion.
+func completeDeployedApps(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if len(args) != 0 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	mgr, err := newManager()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+	deployed, err := mgr.ListDeployed()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+	return deployed, cobra.ShellCompDirectiveNoFileComp
 }
 
 func init() {
@@ -37,6 +67,18 @@ func init() {
 	appsCmd.AddCommand(appsLogsCmd)
 	appsCmd.AddCommand(appsUpdateCmd)
 	appsCmd.AddCommand(appsInfoCmd)
+	appsCmd.AddCommand(appsHealthCmd)
+
+	// Dynamic completion: template names for deploy/info, deployed apps for the rest
+	appsDeployCmd.ValidArgsFunction = completeTemplateNames
+	appsInfoCmd.ValidArgsFunction = completeTemplateNames
+	appsRemoveCmd.ValidArgsFunction = completeDeployedApps
+	appsStatusCmd.ValidArgsFunction = completeDeployedApps
+	appsStartCmd.ValidArgsFunction = completeDeployedApps
+	appsStopCmd.ValidArgsFunction = completeDeployedApps
+	appsRestartCmd.ValidArgsFunction = completeDeployedApps
+	appsLogsCmd.ValidArgsFunction = completeDeployedApps
+	appsUpdateCmd.ValidArgsFunction = completeDeployedApps
 
 	appsListCmd.Flags().Bool("all", false, "Show all available templates (not just deployed)")
 	appsListCmd.Flags().String("filter", "", "Filter apps by name or description substring")
@@ -48,11 +90,15 @@ func init() {
 	appsRemoveCmd.Flags().Bool("keep-data", false, "Keep app data volumes")
 	appsLogsCmd.Flags().BoolP("follow", "f", false, "Follow log output")
 	appsLogsCmd.Flags().IntP("lines", "n", 100, "Number of lines to show")
+	appsUpdateCmd.Flags().Bool("all", false, "Update all deployed apps")
+	appsHealthCmd.Flags().Bool("history", false, "Show recent health check history")
+	appsHealthCmd.ValidArgsFunction = completeDeployedApps
 
 	// Top-level "logs" shortcut (alias for "apps logs")
 	rootCmd.AddCommand(logsCmd)
 	logsCmd.Flags().BoolP("follow", "f", false, "Follow log output")
 	logsCmd.Flags().IntP("lines", "n", 100, "Number of lines to show")
+	logsCmd.ValidArgsFunction = completeDeployedApps
 }
 
 var appsCmd = &cobra.Command{
@@ -296,7 +342,7 @@ var appsInfoCmd = &cobra.Command{
 var appsDeployCmd = &cobra.Command{
 	Use:   "deploy <app>",
 	Short: "Deploy an app",
-	Long:  "Deploy an app from a built-in template.",
+	Long:  "Deploy an app from a built-in or local template.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		mgr, err := newManager()
@@ -487,9 +533,9 @@ var appsLogsCmd = &cobra.Command{
 }
 
 var appsUpdateCmd = &cobra.Command{
-	Use:   "update <app>",
+	Use:   "update [app]",
 	Short: "Pull latest images and recreate containers",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := config.Load()
 		if err != nil {
@@ -497,6 +543,42 @@ var appsUpdateCmd = &cobra.Command{
 		}
 		runner := &exec.Runner{Verbose: verbose}
 		compose := app.NewCompose(runner, cfg.Docker.ComposeCommand)
+
+		updateAll, _ := cmd.Flags().GetBool("all")
+
+		if updateAll {
+			mgr, err := newManager()
+			if err != nil {
+				return err
+			}
+			deployed, err := mgr.ListDeployed()
+			if err != nil {
+				return err
+			}
+			if len(deployed) == 0 {
+				fmt.Println("No apps deployed.")
+				return nil
+			}
+			for _, appName := range deployed {
+				appDir := cfg.AppDir(appName)
+				fmt.Printf("Updating %s...\n", appName)
+				if _, err := compose.Pull(appDir); err != nil {
+					fmt.Printf("  Pull failed for %s: %v\n", appName, err)
+					continue
+				}
+				if _, err := compose.Up(appDir); err != nil {
+					fmt.Printf("  Recreate failed for %s: %v\n", appName, err)
+					continue
+				}
+				fmt.Printf("  %s updated.\n", appName)
+			}
+			return nil
+		}
+
+		if len(args) == 0 {
+			return fmt.Errorf("app name required (or use --all)")
+		}
+
 		appDir := cfg.AppDir(args[0])
 		fmt.Printf("Pulling latest images for %s...\n", args[0])
 		if _, err := compose.Pull(appDir); err != nil {
@@ -507,6 +589,111 @@ var appsUpdateCmd = &cobra.Command{
 			return err
 		}
 		fmt.Printf("App %s updated.\n", args[0])
+		return nil
+	},
+}
+
+var appsHealthCmd = &cobra.Command{
+	Use:   "health [app]",
+	Short: "Check app health status",
+	Args:  cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cfg, err := config.Load()
+		if err != nil {
+			return err
+		}
+
+		showHistory, _ := cmd.Flags().GetBool("history")
+
+		if showHistory {
+			monitor := health.NewMonitor(cfg.DataDir, cfg.Health.MaxHistory)
+			records, err := monitor.LoadHistory()
+			if err != nil {
+				return err
+			}
+			if len(records) == 0 {
+				fmt.Println("No health check history.")
+				return nil
+			}
+
+			// Show last 10 records
+			start := 0
+			if len(records) > 10 {
+				start = len(records) - 10
+			}
+
+			if jsonOutput {
+				return outputJSON(records[start:])
+			}
+
+			for _, rec := range records[start:] {
+				fmt.Printf("--- %s ---\n", rec.Timestamp.Format("2006-01-02 15:04:05"))
+				for _, r := range rec.Results {
+					fmt.Printf("  %-20s %s  %s\n", r.App, r.Status, r.Detail)
+				}
+			}
+			return nil
+		}
+
+		mgr, err := newManager()
+		if err != nil {
+			return err
+		}
+
+		runner := &exec.Runner{Verbose: verbose}
+		compose := app.NewCompose(runner, cfg.Docker.ComposeCommand)
+		checker := app.NewHealthChecker()
+		registry := mgr.Registry()
+
+		var appsToCheck []string
+		if len(args) > 0 {
+			appsToCheck = []string{args[0]}
+		} else {
+			deployed, err := mgr.ListDeployed()
+			if err != nil {
+				return err
+			}
+			appsToCheck = deployed
+		}
+
+		if len(appsToCheck) == 0 {
+			fmt.Println("No apps deployed.")
+			return nil
+		}
+
+		type healthEntry struct {
+			App    string `json:"app"`
+			Status string `json:"status"`
+			Detail string `json:"detail,omitempty"`
+		}
+
+		var results []healthEntry
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		if !jsonOutput {
+			fmt.Fprintln(w, "APP\tSTATUS\tDETAIL")
+		}
+
+		for _, appName := range appsToCheck {
+			meta, ok := registry.Get(appName)
+			if !ok {
+				results = append(results, healthEntry{App: appName, Status: "unknown", Detail: "no template found"})
+				if !jsonOutput {
+					fmt.Fprintf(w, "%s\t%s\t%s\n", appName, "unknown", "no template found")
+				}
+				continue
+			}
+
+			r := checker.CheckApp(meta, compose, cfg.AppDir(appName))
+			results = append(results, healthEntry{App: r.App, Status: string(r.Status), Detail: r.Detail})
+			if !jsonOutput {
+				fmt.Fprintf(w, "%s\t%s\t%s\n", r.App, r.Status, r.Detail)
+			}
+		}
+
+		if jsonOutput {
+			return outputJSON(results)
+		}
+		w.Flush()
 		return nil
 	},
 }

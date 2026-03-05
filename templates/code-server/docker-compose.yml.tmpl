@@ -1,6 +1,6 @@
 services:
   code-server:
-    image: lscr.io/linuxserver/code-server:latest
+    image: lscr.io/linuxserver/code-server:4.109.5
     container_name: code-server
     restart: unless-stopped
     ports:
@@ -8,14 +8,31 @@ services:
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ=Etc/UTC
+      - TZ={{index . "timezone"}}
       - PASSWORD={{index . "password"}}
       - SUDO_PASSWORD={{index . "sudo_password"}}
+    deploy:
+      resources:
+        limits:
+          memory: 1G
     volumes:
       - {{index . "data_dir"}}/config:/config
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8443 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
     networks:
-      - homelabctl-net
+      - {{index . "network"}}
 
 networks:
-  homelabctl-net:
+  {{index . "network"}}:
     external: true

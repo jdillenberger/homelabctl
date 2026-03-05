@@ -2,9 +2,11 @@ package app
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -33,13 +35,22 @@ type HealthChecker struct {
 // NewHealthChecker creates a new HealthChecker with a default timeout.
 func NewHealthChecker() *HealthChecker {
 	return &HealthChecker{
-		client: &http.Client{Timeout: 5 * time.Second},
+		client: &http.Client{
+			Timeout: 5 * time.Second,
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // health checks target localhost with self-signed certs
+			},
+		},
 	}
 }
 
 // CheckHTTP performs an HTTP GET health check against the given URL.
-func (hc *HealthChecker) CheckHTTP(url string) HealthResult {
-	resp, err := hc.client.Get(url)
+func (hc *HealthChecker) CheckHTTP(ctx context.Context, url string) HealthResult {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return HealthResult{Status: HealthStatusUnhealthy, Detail: err.Error()}
+	}
+	resp, err := hc.client.Do(req)
 	if err != nil {
 		return HealthResult{Status: HealthStatusUnhealthy, Detail: err.Error()}
 	}
@@ -62,16 +73,25 @@ func (hc *HealthChecker) CheckTCP(host string, port int) HealthResult {
 	return HealthResult{Status: HealthStatusHealthy, Detail: fmt.Sprintf("TCP %s reachable", addr)}
 }
 
-// CheckContainer checks if a container is running and healthy via docker inspect.
+// CheckContainer checks if all containers in the project are running and healthy.
 func (hc *HealthChecker) CheckContainer(compose *Compose, appDir string) HealthResult {
 	result, err := compose.PS(appDir)
 	if err != nil {
 		return HealthResult{Status: HealthStatusUnknown, Detail: err.Error()}
 	}
-	if result.Stdout == "" {
+	output := strings.TrimSpace(result.Stdout)
+	if output == "" {
 		return HealthResult{Status: HealthStatusUnhealthy, Detail: "no containers running"}
 	}
-	return HealthResult{Status: HealthStatusHealthy, Detail: "containers running"}
+	lines := strings.Split(output, "\n")
+	// First line is the header row; check each subsequent line for status.
+	for _, line := range lines[1:] {
+		lower := strings.ToLower(line)
+		if strings.Contains(lower, "exit") || strings.Contains(lower, "dead") || strings.Contains(lower, "restarting") {
+			return HealthResult{Status: HealthStatusUnhealthy, Detail: "one or more containers not running"}
+		}
+	}
+	return HealthResult{Status: HealthStatusHealthy, Detail: fmt.Sprintf("%d container(s) running", len(lines)-1)}
 }
 
 // CheckApp performs the appropriate health check for an app based on its metadata.
@@ -82,9 +102,8 @@ func (hc *HealthChecker) CheckApp(meta *AppMeta, compose *Compose, appDir string
 	if meta.HealthCheck != nil && meta.HealthCheck.URL != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		_ = ctx
 
-		r := hc.CheckHTTP(meta.HealthCheck.URL)
+		r := hc.CheckHTTP(ctx, meta.HealthCheck.URL)
 		r.App = meta.Name
 		return r
 	}

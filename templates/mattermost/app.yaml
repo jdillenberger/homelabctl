@@ -1,7 +1,7 @@
 name: mattermost
 description: Open source team messaging platform
 category: social
-version: "latest"
+version: "11.4.2"
 ports:
   - host: 8065
     container: 8065
@@ -16,6 +16,9 @@ values:
     description: PostgreSQL password
     secret: true
     auto_gen: password
+  - name: timezone
+    description: Timezone
+    default: "UTC"
 dependencies:
   - docker
 volumes:
@@ -46,6 +49,9 @@ backup:
     - data
     - plugins
     - db
+  pre_hook: "docker exec mattermost-db pg_dumpall -U mattermost > /tmp/mattermost-db-backup.sql"
+  post_hook: "rm -f /tmp/mattermost-db-backup.sql"
 requirements:
   min_ram: 512M
-  arch: [amd64, arm64]
+  min_disk: 5G
+  arch: [amd64]

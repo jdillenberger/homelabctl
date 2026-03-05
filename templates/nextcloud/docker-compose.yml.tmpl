@@ -1,11 +1,12 @@
 services:
   nextcloud:
-    image: nextcloud:latest
+    image: nextcloud:32.0.6
     container_name: nextcloud
     restart: unless-stopped
     ports:
       - "{{index . "web_port"}}:80"
     environment:
+      - TZ={{index . "timezone"}}
       - MYSQL_HOST=nextcloud-db
       - MYSQL_DATABASE={{index . "db_name"}}
       - MYSQL_USER={{index . "db_user"}}
@@ -13,23 +14,46 @@ services:
       - NEXTCLOUD_ADMIN_USER={{index . "nextcloud_admin_user"}}
       - NEXTCLOUD_ADMIN_PASSWORD={{index . "nextcloud_admin_password"}}
       - NEXTCLOUD_TRUSTED_DOMAINS={{index . "hostname"}}.{{index . "domain"}}
+      - OVERWRITEPROTOCOL=https
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:80/status.php || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
     volumes:
       - {{index . "data_dir"}}/html:/var/www/html
     depends_on:
       nextcloud-db:
         condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
-      - homelabctl-net
+      - {{index . "network"}}
 
   nextcloud-db:
     image: mariadb:11
     container_name: nextcloud-db
     restart: unless-stopped
     environment:
+      - TZ={{index . "timezone"}}
       - MYSQL_ROOT_PASSWORD={{index . "db_password"}}
       - MYSQL_DATABASE={{index . "db_name"}}
       - MYSQL_USER={{index . "db_user"}}
       - MYSQL_PASSWORD={{index . "db_user_password"}}
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     volumes:
       - {{index . "data_dir"}}/db:/var/lib/mysql
     healthcheck:
@@ -37,9 +61,16 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
-      - homelabctl-net
+      - {{index . "network"}}
 
 networks:
-  homelabctl-net:
+  {{index . "network"}}:
     external: true

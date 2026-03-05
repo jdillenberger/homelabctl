@@ -1,7 +1,7 @@
 name: code-server
 description: VS Code in the browser
 category: dev
-version: "latest"
+version: "4.109.5"
 ports:
   - host: 8443
     container: 8443
@@ -20,6 +20,11 @@ values:
     description: Sudo password
     secret: true
     auto_gen: password
+  - name: timezone
+    description: Timezone
+    default: "UTC"
+dependencies:
+  - docker
 volumes:
   - name: config
     container: /config

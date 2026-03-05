@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+
+	"github.com/jdillenberger/homelabctl/internal/health"
 )
 
 // APIHealth returns a JSON health check response.
@@ -19,6 +21,19 @@ func (h *Handler) APIHealth(c echo.Context) error {
 // APIStats returns JSON system stats.
 func (h *Handler) APIStats(c echo.Context) error {
 	return c.JSON(http.StatusOK, statsJSON())
+}
+
+// APIHealthHistory returns health check history as JSON.
+func (h *Handler) APIHealthHistory(c echo.Context) error {
+	monitor := health.NewMonitor(h.cfg.DataDir, h.cfg.Health.MaxHistory)
+	records, err := monitor.LoadHistory()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+	if records == nil {
+		records = []health.CheckRecord{}
+	}
+	return c.JSON(http.StatusOK, records)
 }
 
 // APIApps returns a JSON list of deployed apps.

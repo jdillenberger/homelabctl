@@ -1,7 +1,7 @@
 name: portainer
 description: Docker container management UI
 category: infra
-version: "latest"
+version: "2.39.0"
 ports:
   - host: 9443
     container: 9443
@@ -20,12 +20,17 @@ values:
   - name: https_port
     description: HTTPS port
     default: "9443"
+  - name: timezone
+    description: Timezone
+    default: "UTC"
+dependencies:
+  - docker
 volumes:
   - name: data
     container: /data
     description: Portainer data
 health_check:
-  url: "https://localhost:{{.https_port}}"
+  url: "http://localhost:{{.http_port}}/api/system/status"
   interval: 30s
 backup:
   paths:

@@ -1,6 +1,6 @@
 services:
   mattermost:
-    image: mattermost/mattermost-team-edition:latest
+    image: mattermost/mattermost-team-edition:11.4.2
     container_name: mattermost
     restart: unless-stopped
     ports:
@@ -9,17 +9,36 @@ services:
       - MM_SQLSETTINGS_DRIVERNAME=postgres
       - MM_SQLSETTINGS_DATASOURCE=postgres://mattermost:{{index . "db_password"}}@mattermost-db:5432/mattermost?sslmode=disable&connect_timeout=10
       - MM_BLEVESETTINGS_INDEXDIR=/mattermost/bleve-indexes
+      - MM_SERVICESETTINGS_SITEURL=http://{{index . "hostname"}}.{{index . "domain"}}:{{index . "web_port"}}
+      - TZ={{index . "timezone"}}
     volumes:
       - {{index . "data_dir"}}/config:/mattermost/config
       - {{index . "data_dir"}}/data:/mattermost/data
       - {{index . "data_dir"}}/logs:/mattermost/logs
       - {{index . "data_dir"}}/plugins:/mattermost/plugins
       - {{index . "data_dir"}}/client-plugins:/mattermost/client/plugins
+    healthcheck:
+      test: ["CMD", "/mattermost/bin/mmctl", "system", "status", "--local"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
     depends_on:
       mattermost-db:
         condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
-      - homelabctl-net
+      - {{index . "network"}}
 
   mattermost-db:
     image: postgres:16-alpine
@@ -29,6 +48,7 @@ services:
       - POSTGRES_DB=mattermost
       - POSTGRES_USER=mattermost
       - POSTGRES_PASSWORD={{index . "db_password"}}
+      - TZ={{index . "timezone"}}
     volumes:
       - {{index . "data_dir"}}/db:/var/lib/postgresql/data
     healthcheck:
@@ -36,9 +56,21 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
-      - homelabctl-net
+      - {{index . "network"}}
 
 networks:
-  homelabctl-net:
+  {{index . "network"}}:
     external: true

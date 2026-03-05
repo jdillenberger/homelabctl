@@ -1,24 +1,48 @@
 name: openclaw
-description: Open source reimplementation of Captain Claw game
-category: other
+description: AI coding assistant with gateway and CLI interface
+category: dev
 version: "latest"
 ports:
-  - host: 8080
-    container: 8080
+  - host: 18789
+    container: 18789
     protocol: tcp
-    description: Web UI
-    value_name: web_port
+    description: Gateway Web UI
+    value_name: gateway_port
+  - host: 18790
+    container: 18790
+    protocol: tcp
+    description: Bridge
+    value_name: bridge_port
 values:
-  - name: web_port
-    description: Web UI port
-    default: "8080"
+  - name: gateway_port
+    description: Gateway Web UI port
+    default: "18789"
+  - name: bridge_port
+    description: Bridge port
+    default: "18790"
+  - name: gateway_token
+    description: Gateway authentication token
+    secret: true
+    auto_gen: password
+  - name: timezone
+    description: Timezone
+    default: "UTC"
+dependencies:
+  - docker
 volumes:
-  - name: data
-    container: /data
-    description: OpenClaw data
+  - name: config
+    container: /home/node/.openclaw
+    description: OpenClaw configuration
+  - name: workspace
+    container: /home/node/.openclaw/workspace
+    description: OpenClaw workspace
 health_check:
-  url: "http://localhost:{{.web_port}}"
+  url: "http://localhost:{{.gateway_port}}/healthz"
   interval: 30s
+backup:
+  paths:
+    - config
+    - workspace
 requirements:
-  min_ram: 128M
+  min_ram: 2G
   arch: [amd64, arm64]

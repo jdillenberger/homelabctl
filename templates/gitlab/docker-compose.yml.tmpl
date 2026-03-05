@@ -1,6 +1,6 @@
 services:
   gitlab:
-    image: gitlab/gitlab-ce:latest
+    image: gitlab/gitlab-ce:18.9.1-ce.0
     container_name: gitlab
     restart: unless-stopped
     hostname: gitlab
@@ -8,6 +8,7 @@ services:
       - "{{index . "web_port"}}:80"
       - "{{index . "ssh_port"}}:22"
     environment:
+      TZ: '{{index . "timezone"}}'
       GITLAB_OMNIBUS_CONFIG: |
         external_url '{{index . "external_url"}}'
         gitlab_rails['initial_root_password'] = '{{index . "root_password"}}'
@@ -19,9 +20,26 @@ services:
       - {{index . "data_dir"}}/logs:/var/log/gitlab
       - {{index . "data_dir"}}/data:/var/opt/gitlab
     shm_size: '256m'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/-/health"]
+      interval: 60s
+      timeout: 30s
+      retries: 5
+      start_period: 300s
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
     networks:
-      - homelabctl-net
+      - {{index . "network"}}
 
 networks:
-  homelabctl-net:
+  {{index . "network"}}:
     external: true

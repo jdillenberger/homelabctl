@@ -12,10 +12,14 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	"github.com/jdillenberger/homelabctl/internal/alert"
+	"github.com/jdillenberger/homelabctl/internal/app"
 	"github.com/jdillenberger/homelabctl/internal/backup"
 	"github.com/jdillenberger/homelabctl/internal/config"
 	"github.com/jdillenberger/homelabctl/internal/exec"
+	"github.com/jdillenberger/homelabctl/internal/health"
 	"github.com/jdillenberger/homelabctl/internal/mdns"
+	"github.com/jdillenberger/homelabctl/internal/scheduler"
 	"github.com/jdillenberger/homelabctl/internal/web"
 )
 
@@ -71,10 +75,25 @@ var serveCmd = &cobra.Command{
 			}
 		}
 
-		// Start backup scheduler
+		// Set up generalized scheduler
+		sched := scheduler.New()
+
+		// Set up alert manager (used by multiple jobs)
+		var alertMgr *alert.Manager
+		if cfg.Alerts.Enabled {
+			alertStore := alert.NewStore(cfg.DataDir)
+			cooldown, err := time.ParseDuration(cfg.Alerts.Cooldown)
+			if err != nil {
+				slog.Warn("Invalid alert cooldown, using 15m", "error", err)
+				cooldown = 15 * time.Minute
+			}
+			alertMgr = alert.NewManager(alertStore, cooldown)
+			alertMgr.RegisterNotifiers(cfg.Alerts.Channels)
+		}
+
+		// Register backup job
 		if cfg.Backup.Enabled {
-			scheduler := backup.NewScheduler()
-			err := scheduler.Start(cfg.Backup.Schedule, func() {
+			backupFunc := func() {
 				deployed, err := mgr.ListDeployed()
 				if err != nil {
 					slog.Error("Backup: failed to list deployed apps", "error", err)
@@ -99,6 +118,9 @@ var serveCmd = &cobra.Command{
 
 					if _, borgErr := borg.Create(configFile); borgErr != nil {
 						slog.Error("Backup failed", "app", appName, "error", borgErr)
+						if alertMgr != nil {
+							alertMgr.NotifyBackupFailed(appName, borgErr)
+						}
 					}
 
 					// Run post-hook if defined
@@ -108,13 +130,154 @@ var serveCmd = &cobra.Command{
 						}
 					}
 				}
-			})
-			if err != nil {
+			}
+			if err := sched.Add(scheduler.Job{
+				Name:     "backup",
+				Schedule: cfg.Backup.Schedule,
+				Func:     backupFunc,
+			}); err != nil {
 				slog.Warn("Backup scheduler failed to start", "error", err)
-			} else {
-				defer scheduler.Stop()
 			}
 		}
+
+		// Register health check monitoring job
+		if cfg.Health.Enabled {
+			healthMonitor := health.NewMonitor(cfg.DataDir, cfg.Health.MaxHistory)
+			healthChecker := app.NewHealthChecker()
+			compose := app.NewCompose(runner, cfg.Docker.ComposeCommand)
+
+			healthFunc := func() {
+				deployed, err := mgr.ListDeployed()
+				if err != nil {
+					slog.Error("Health check: failed to list deployed apps", "error", err)
+					return
+				}
+
+				var results []app.HealthResult
+				registry := mgr.Registry()
+				for _, appName := range deployed {
+					meta, ok := registry.Get(appName)
+					if !ok {
+						continue
+					}
+					result := healthChecker.CheckApp(meta, compose, cfg.AppDir(appName))
+					results = append(results, result)
+				}
+
+				if err := healthMonitor.Record(results); err != nil {
+					slog.Error("Health check: failed to record results", "error", err)
+				}
+
+				if alertMgr != nil {
+					alertMgr.Evaluate(nil, results)
+				}
+			}
+			if err := sched.Add(scheduler.Job{
+				Name:     "health-check",
+				Schedule: cfg.Health.Schedule,
+				Func:     healthFunc,
+			}); err != nil {
+				slog.Warn("Health check scheduler failed to start", "error", err)
+			}
+		}
+
+		// Register alert monitoring job (only if health is not enabled, to avoid duplicate checks)
+		if cfg.Alerts.Enabled && !cfg.Health.Enabled {
+			compose := app.NewCompose(runner, cfg.Docker.ComposeCommand)
+			healthChecker := app.NewHealthChecker()
+
+			alertFunc := func() {
+				deployed, err := mgr.ListDeployed()
+				if err != nil {
+					slog.Error("Alert monitor: failed to list deployed apps", "error", err)
+					return
+				}
+
+				var results []app.HealthResult
+				registry := mgr.Registry()
+				for _, appName := range deployed {
+					meta, ok := registry.Get(appName)
+					if !ok {
+						continue
+					}
+					result := healthChecker.CheckApp(meta, compose, cfg.AppDir(appName))
+					results = append(results, result)
+				}
+
+				alertMgr.Evaluate(nil, results)
+			}
+			if err := sched.Add(scheduler.Job{
+				Name:     "alert-monitor",
+				Schedule: cfg.Alerts.Schedule,
+				Func:     alertFunc,
+			}); err != nil {
+				slog.Warn("Alert monitor scheduler failed to start", "error", err)
+			}
+		}
+
+		// Register auto-update job
+		if cfg.Updates.Enabled {
+			compose := app.NewCompose(runner, cfg.Docker.ComposeCommand)
+			updateFunc := func() {
+				deployed, err := mgr.ListDeployed()
+				if err != nil {
+					slog.Error("Auto-update: failed to list deployed apps", "error", err)
+					return
+				}
+				for _, appName := range deployed {
+					appDir := cfg.AppDir(appName)
+					slog.Info("Auto-update: pulling images", "app", appName)
+					if _, err := compose.Pull(appDir); err != nil {
+						slog.Error("Auto-update: pull failed", "app", appName, "error", err)
+						if alertMgr != nil {
+							alertMgr.NotifyUpdateFailed(appName, err)
+						}
+						continue
+					}
+					if _, err := compose.Up(appDir); err != nil {
+						slog.Error("Auto-update: up failed", "app", appName, "error", err)
+						if alertMgr != nil {
+							alertMgr.NotifyUpdateFailed(appName, err)
+						}
+					}
+				}
+			}
+			if err := sched.Add(scheduler.Job{
+				Name:     "auto-update",
+				Schedule: cfg.Updates.Schedule,
+				Func:     updateFunc,
+			}); err != nil {
+				slog.Warn("Auto-update scheduler failed to start", "error", err)
+			}
+		}
+
+		// Register docker prune job
+		if cfg.Prune.Enabled {
+			pruneFunc := func() {
+				slog.Info("Scheduled prune: cleaning up Docker resources")
+				cmds := [][]string{
+					{"docker", "image", "prune", "-af"},
+					{"docker", "volume", "prune", "-f"},
+					{"docker", "network", "prune", "-f"},
+					{"docker", "builder", "prune", "-af"},
+				}
+				for _, c := range cmds {
+					if _, err := runner.Run(c[0], c[1:]...); err != nil {
+						slog.Error("Scheduled prune failed", "command", c, "error", err)
+					}
+				}
+			}
+			if err := sched.Add(scheduler.Job{
+				Name:     "docker-prune",
+				Schedule: cfg.Prune.Schedule,
+				Func:     pruneFunc,
+			}); err != nil {
+				slog.Warn("Docker prune scheduler failed to start", "error", err)
+			}
+		}
+
+		sched.Start()
+		defer sched.Stop()
 
 		// Graceful shutdown
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

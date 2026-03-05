@@ -1,7 +1,7 @@
 name: adguard
 description: Network-wide ad and tracker blocking DNS server
 category: infra
-version: "latest"
+version: "v0.107.72"
 ports:
   - host: 3000
     container: 3000
@@ -24,6 +24,11 @@ values:
   - name: dns_port
     description: DNS port
     default: "53"
+  - name: timezone
+    description: Timezone
+    default: "UTC"
+dependencies:
+  - docker
 volumes:
   - name: work
     container: /opt/adguardhome/work
@@ -37,6 +42,7 @@ health_check:
 backup:
   paths:
     - conf
+    - work
 requirements:
   min_ram: 128M
   arch: [amd64, arm64, armv7]
