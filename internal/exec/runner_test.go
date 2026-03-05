@@ -1,8 +1,10 @@
 package exec
 
 import (
+	"context"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestRunSuccess(t *testing.T) {
@@ -59,5 +61,43 @@ func TestRunVerboseMode(t *testing.T) {
 	}
 	if strings.TrimSpace(result.Stdout) != "test" {
 		t.Errorf("expected stdout='test', got %q", result.Stdout)
+	}
+}
+
+func TestRunWithContextSuccess(t *testing.T) {
+	r := &Runner{Verbose: false}
+	ctx := context.Background()
+	result, err := r.RunWithContext(ctx, "echo", "hello")
+	if err != nil {
+		t.Fatalf("RunWithContext() error: %v", err)
+	}
+	if strings.TrimSpace(result.Stdout) != "hello" {
+		t.Errorf("expected stdout='hello', got %q", result.Stdout)
+	}
+}
+
+func TestRunWithContextTimeout(t *testing.T) {
+	r := &Runner{Verbose: false}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	_, err := r.RunWithContext(ctx, "sleep", "10")
+	if err == nil {
+		t.Fatal("RunWithContext() with expired context should return an error")
+	}
+	if !strings.Contains(err.Error(), "context deadline exceeded") {
+		t.Errorf("expected context deadline error, got: %v", err)
+	}
+}
+
+func TestRunWithContextCancellation(t *testing.T) {
+	r := &Runner{Verbose: false}
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		cancel()
+	}()
+	_, err := r.RunWithContext(ctx, "sleep", "10")
+	if err == nil {
+		t.Fatal("RunWithContext() with cancelled context should return an error")
 	}
 }

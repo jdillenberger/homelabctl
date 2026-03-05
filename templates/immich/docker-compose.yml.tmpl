@@ -29,6 +29,7 @@ services:
         condition: service_healthy
     security_opt:
       - no-new-privileges:true
+    pids_limit: 200
     logging:
       driver: json-file
       options:
@@ -57,6 +58,7 @@ services:
       start_period: 60s
     security_opt:
       - no-new-privileges:true
+    pids_limit: 200
     logging:
       driver: json-file
       options:
@@ -69,6 +71,7 @@ services:
     image: ghcr.io/immich-app/postgres:16-vectorchord0.3.0-pgvectors0.3.0
     container_name: immich-db
     restart: unless-stopped
+    shm_size: '256m'
     environment:
       - POSTGRES_DB=immich
       - POSTGRES_USER=immich
@@ -89,6 +92,7 @@ services:
       start_period: 10s
     security_opt:
       - no-new-privileges:true
+    pids_limit: 100
     logging:
       driver: json-file
       options:
@@ -116,6 +120,7 @@ services:
       retries: 5
     security_opt:
       - no-new-privileges:true
+    pids_limit: 50
     logging:
       driver: json-file
       options:

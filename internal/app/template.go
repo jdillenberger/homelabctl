@@ -124,20 +124,20 @@ func (r *TemplateRenderer) renderString(tmplStr string, values map[string]string
 	return buf.String(), nil
 }
 
-func genPassword() string {
+func genPassword() (string, error) {
 	return genRandomHex(16)
 }
 
 // genLongSecret generates a 128-character hex secret (64 random bytes),
 // suitable for Rails secret_key_base and similar high-entropy secrets.
-func genLongSecret() string {
+func genLongSecret() (string, error) {
 	return genRandomHex(64)
 }
 
-func genRandomHex(nBytes int) string {
+func genRandomHex(nBytes int) (string, error) {
 	b := make([]byte, nBytes)
 	if _, err := rand.Read(b); err != nil {
-		panic(fmt.Sprintf("crypto/rand failed: %v", err))
+		return "", fmt.Errorf("crypto/rand failed: %w", err)
 	}
-	return hex.EncodeToString(b)
+	return hex.EncodeToString(b), nil
 }

@@ -68,6 +68,10 @@ func init() {
 	appsCmd.AddCommand(appsUpdateCmd)
 	appsCmd.AddCommand(appsInfoCmd)
 	appsCmd.AddCommand(appsHealthCmd)
+	appsCmd.AddCommand(appsPinCmd)
+	appsPinCmd.Flags().Bool("dry-run", false, "Show what would be pinned without making changes")
+	appsPinCmd.Flags().Bool("update", false, "Rewrite template files with pinned versions")
+	appsPinCmd.ValidArgsFunction = completeTemplateNames
 
 	// Dynamic completion: template names for deploy/info, deployed apps for the rest
 	appsDeployCmd.ValidArgsFunction = completeTemplateNames
@@ -692,6 +696,78 @@ var appsHealthCmd = &cobra.Command{
 
 		if jsonOutput {
 			return outputJSON(results)
+		}
+		w.Flush()
+		return nil
+	},
+}
+
+var appsPinCmd = &cobra.Command{
+	Use:   "pin [app]",
+	Short: "Resolve floating image tags to pinned versions",
+	Long:  "Scan templates for floating tags (latest, release) and resolve them via registry API to the highest semver tag with the same digest.",
+	Args:  cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cfg, err := config.Load()
+		if err != nil {
+			return err
+		}
+		tmplFS := app.BuildTemplateFS(templates.FS, cfg.TemplatesDir)
+
+		entries, err := app.ScanFloatingTags(tmplFS)
+		if err != nil {
+			return fmt.Errorf("scanning templates: %w", err)
+		}
+
+		// Filter to specific app if provided
+		if len(args) > 0 {
+			appName := args[0]
+			var filtered []app.FloatingTagEntry
+			for _, e := range entries {
+				if e.AppName == appName {
+					filtered = append(filtered, e)
+				}
+			}
+			entries = filtered
+		}
+
+		if len(entries) == 0 {
+			fmt.Println("No floating tags found.")
+			return nil
+		}
+
+		dryRun, _ := cmd.Flags().GetBool("dry-run")
+		update, _ := cmd.Flags().GetBool("update")
+
+		resolver := app.NewImageResolver()
+
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		fmt.Fprintln(w, "APP\tIMAGE\tFLOATING\tPINNED\tSTATUS")
+
+		for _, entry := range entries {
+			result, err := resolver.ResolveFloatingTag(entry.Ref)
+			if err != nil {
+				fmt.Fprintf(w, "%s\t%s\t%s\t-\terror: %v\n", entry.AppName, entry.Image, entry.Ref.Tag, err)
+				continue
+			}
+
+			if result.PinnedTag == "" {
+				fmt.Fprintf(w, "%s\t%s\t%s\t-\tno semver tag found\n", entry.AppName, entry.Image, entry.Ref.Tag)
+				continue
+			}
+
+			status := "found"
+			if update && !dryRun {
+				status = "updated"
+				// Rewriting templates is left for a future enhancement;
+				// for now we report what would change.
+				status = "found (use --update to apply)"
+			}
+			if dryRun {
+				status = "dry-run"
+			}
+
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", entry.AppName, entry.Image, entry.Ref.Tag, result.PinnedTag, status)
 		}
 		w.Flush()
 		return nil

@@ -92,20 +92,26 @@ func TestRenderAllFiles(t *testing.T) {
 }
 
 func TestGenPassword(t *testing.T) {
-	pw := genPassword()
+	pw, err := genPassword()
+	if err != nil {
+		t.Fatalf("genPassword() error: %v", err)
+	}
 
 	if len(pw) != 32 {
 		t.Errorf("genPassword() returned %d chars, expected 32", len(pw))
 	}
 
 	// Verify it's valid hex
-	_, err := hex.DecodeString(pw)
+	_, err = hex.DecodeString(pw)
 	if err != nil {
 		t.Errorf("genPassword() returned non-hex string: %q", pw)
 	}
 
 	// Ensure two calls produce different values
-	pw2 := genPassword()
+	pw2, err := genPassword()
+	if err != nil {
+		t.Fatalf("genPassword() second call error: %v", err)
+	}
 	if pw == pw2 {
 		t.Error("genPassword() returned identical values on two calls")
 	}

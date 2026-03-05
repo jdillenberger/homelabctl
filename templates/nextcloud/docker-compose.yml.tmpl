@@ -37,13 +37,15 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    pids_limit: 200
     networks:
       - {{index . "network"}}
 
   nextcloud-db:
-    image: mariadb:11
+    image: mariadb:11.4
     container_name: nextcloud-db
     restart: unless-stopped
+    shm_size: '256m'
     environment:
       - TZ={{index . "timezone"}}
       - MYSQL_ROOT_PASSWORD={{index . "db_password"}}
@@ -68,6 +70,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    pids_limit: 100
     networks:
       - {{index . "network"}}
 

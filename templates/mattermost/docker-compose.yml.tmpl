@@ -37,6 +37,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    pids_limit: 200
     networks:
       - {{index . "network"}}
 
@@ -44,6 +45,7 @@ services:
     image: postgres:16-alpine
     container_name: mattermost-db
     restart: unless-stopped
+    shm_size: '256m'
     environment:
       - POSTGRES_DB=mattermost
       - POSTGRES_USER=mattermost
@@ -68,6 +70,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    pids_limit: 100
     networks:
       - {{index . "network"}}
 

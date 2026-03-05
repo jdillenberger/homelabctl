@@ -2,6 +2,7 @@ package exec
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -61,6 +62,37 @@ func (r *Runner) RunInteractive(name string, args ...string) error {
 	cmd.Stderr = os.Stderr
 
 	return cmd.Run()
+}
+
+// RunWithContext executes a command with context support for cancellation/timeouts.
+func (r *Runner) RunWithContext(ctx context.Context, name string, args ...string) (*Result, error) {
+	if r.Verbose {
+		fmt.Fprintf(os.Stderr, "exec: %s %s\n", name, strings.Join(args, " "))
+	}
+
+	cmd := exec.CommandContext(ctx, name, args...)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	result := &Result{
+		Stdout: stdout.String(),
+		Stderr: stderr.String(),
+	}
+
+	if ctx.Err() != nil {
+		return result, fmt.Errorf("command %q: %w", name, ctx.Err())
+	}
+	if exitErr, ok := err.(*exec.ExitError); ok {
+		result.ExitCode = exitErr.ExitCode()
+		return result, fmt.Errorf("command %q exited with code %d: %s", name, result.ExitCode, stderr.String())
+	}
+	if err != nil {
+		return result, fmt.Errorf("command %q failed: %w", name, err)
+	}
+
+	return result, nil
 }
 
 // RunStream runs a command streaming stdout to the given writer.

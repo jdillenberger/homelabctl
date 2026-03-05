@@ -1,11 +1,18 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/jdillenberger/homelabctl/internal/exec"
+)
+
+const (
+	composeDefaultTimeout = 5 * time.Minute
+	composeLongTimeout    = 10 * time.Minute
 )
 
 // Compose wraps the docker compose CLI.
@@ -30,41 +37,43 @@ func (c *Compose) cmdParts() (string, []string) {
 	return parts[0], parts[1:]
 }
 
-func (c *Compose) run(projectDir string, args ...string) (*exec.Result, error) {
+func (c *Compose) run(projectDir string, timeout time.Duration, args ...string) (*exec.Result, error) {
 	bin, baseArgs := c.cmdParts()
 	fullArgs := append(baseArgs, "-f", projectDir+"/docker-compose.yml")
 	fullArgs = append(fullArgs, args...)
-	return c.runner.Run(bin, fullArgs...)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	return c.runner.RunWithContext(ctx, bin, fullArgs...)
 }
 
 // Up runs docker compose up -d.
 func (c *Compose) Up(projectDir string) (*exec.Result, error) {
-	return c.run(projectDir, "up", "-d", "--remove-orphans")
+	return c.run(projectDir, composeLongTimeout, "up", "-d", "--remove-orphans")
 }
 
 // Down runs docker compose down.
 func (c *Compose) Down(projectDir string) (*exec.Result, error) {
-	return c.run(projectDir, "down")
+	return c.run(projectDir, composeDefaultTimeout, "down")
 }
 
 // Start runs docker compose start.
 func (c *Compose) Start(projectDir string) (*exec.Result, error) {
-	return c.run(projectDir, "start")
+	return c.run(projectDir, composeDefaultTimeout, "start")
 }
 
 // Stop runs docker compose stop.
 func (c *Compose) Stop(projectDir string) (*exec.Result, error) {
-	return c.run(projectDir, "stop")
+	return c.run(projectDir, composeDefaultTimeout, "stop")
 }
 
 // Restart runs docker compose restart.
 func (c *Compose) Restart(projectDir string) (*exec.Result, error) {
-	return c.run(projectDir, "restart")
+	return c.run(projectDir, composeDefaultTimeout, "restart")
 }
 
 // PS returns the status of containers in the project.
 func (c *Compose) PS(projectDir string) (*exec.Result, error) {
-	return c.run(projectDir, "ps", "--format", "table")
+	return c.run(projectDir, composeDefaultTimeout, "ps", "--format", "table")
 }
 
 // Logs streams logs to the given writer.
@@ -82,5 +91,5 @@ func (c *Compose) Logs(projectDir string, w io.Writer, follow bool, lines int) e
 
 // Pull pulls the latest images.
 func (c *Compose) Pull(projectDir string) (*exec.Result, error) {
-	return c.run(projectDir, "pull")
+	return c.run(projectDir, composeLongTimeout, "pull")
 }

@@ -33,6 +33,7 @@ services:
         max-file: "3"
     security_opt:
       - no-new-privileges:true
+    pids_limit: 200
     networks:
       - {{index . "network"}}
 
@@ -40,6 +41,7 @@ services:
     image: postgres:16-alpine
     container_name: hedgedoc-db
     restart: unless-stopped
+    shm_size: '256m'
     environment:
       - POSTGRES_DB=hedgedoc
       - POSTGRES_USER=hedgedoc
@@ -64,6 +66,7 @@ services:
         max-file: "3"
     security_opt:
       - no-new-privileges:true
+    pids_limit: 100
     networks:
       - {{index . "network"}}
 

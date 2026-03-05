@@ -45,6 +45,7 @@ services:
         condition: service_healthy
     security_opt:
       - no-new-privileges:true
+    pids_limit: 200
     logging:
       driver: json-file
       options:
@@ -79,6 +80,7 @@ services:
         condition: service_healthy
     security_opt:
       - no-new-privileges:true
+    pids_limit: 200
     logging:
       driver: json-file
       options:
@@ -113,6 +115,7 @@ services:
         condition: service_healthy
     security_opt:
       - no-new-privileges:true
+    pids_limit: 200
     logging:
       driver: json-file
       options:
@@ -125,6 +128,7 @@ services:
     image: postgres:16-alpine
     container_name: mastodon-db
     restart: unless-stopped
+    shm_size: '256m'
     environment:
       POSTGRES_DB: mastodon_production
       POSTGRES_USER: mastodon
@@ -144,6 +148,7 @@ services:
           memory: 512M
     security_opt:
       - no-new-privileges:true
+    pids_limit: 100
     logging:
       driver: json-file
       options:
@@ -171,6 +176,7 @@ services:
           memory: 256M
     security_opt:
       - no-new-privileges:true
+    pids_limit: 50
     logging:
       driver: json-file
       options:

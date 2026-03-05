@@ -23,6 +23,7 @@ services:
       - {{index . "data_dir"}}:/data
     security_opt:
       - no-new-privileges:true
+    pids_limit: 200
     logging:
       driver: json-file
       options:
