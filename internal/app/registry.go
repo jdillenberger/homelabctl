@@ -52,6 +52,7 @@ type Value struct {
 type HealthCheck struct {
 	URL      string `yaml:"url"`
 	Interval string `yaml:"interval"`
+	Timeout  string `yaml:"timeout"` // e.g. "10s", defaults to 5s
 }
 
 type BackupMeta struct {

@@ -56,6 +56,45 @@ func TestParseImageRef(t *testing.T) {
 			repo:      "redis",
 			tag:       "latest",
 		},
+		// Registry with port
+		{
+			input:     "registry.local:5000/myapp:v1.0.0",
+			registry:  "registry.local:5000",
+			namespace: "library",
+			repo:      "myapp",
+			tag:       "v1.0.0",
+		},
+		{
+			input:     "my.registry.io:5000/org/repo:2.0",
+			registry:  "my.registry.io:5000",
+			namespace: "org",
+			repo:      "repo",
+			tag:       "2.0",
+		},
+		// Deep path (4+ segments)
+		{
+			input:     "ghcr.io/org/suborg/repo:v1",
+			registry:  "ghcr.io",
+			namespace: "org/suborg",
+			repo:      "repo",
+			tag:       "v1",
+		},
+		// Registry with port and no tag
+		{
+			input:     "registry.local:5000/app",
+			registry:  "registry.local:5000",
+			namespace: "library",
+			repo:      "app",
+			tag:       "latest",
+		},
+		// No tag defaults to latest
+		{
+			input:     "ghcr.io/org/repo",
+			registry:  "ghcr.io",
+			namespace: "org",
+			repo:      "repo",
+			tag:       "latest",
+		},
 	}
 
 	for _, tt := range tests {
@@ -126,6 +165,76 @@ func TestImageRefString(t *testing.T) {
 				t.Errorf("String() = %q, want %q", got, tt.expect)
 			}
 		})
+	}
+}
+
+func TestParseLinkNext(t *testing.T) {
+	tests := []struct {
+		name    string
+		link    string
+		baseURL string
+		want    string
+	}{
+		{
+			"absolute URL",
+			`<https://registry-1.docker.io/v2/library/nginx/tags/list?n=100&last=1.25>; rel="next"`,
+			"https://registry-1.docker.io/v2/library/nginx/tags/list",
+			"https://registry-1.docker.io/v2/library/nginx/tags/list?n=100&last=1.25",
+		},
+		{
+			"relative URL",
+			`</v2/library/nginx/tags/list?n=100&last=1.25>; rel="next"`,
+			"https://registry-1.docker.io/v2/library/nginx/tags/list",
+			"https://registry-1.docker.io/v2/library/nginx/tags/list?n=100&last=1.25",
+		},
+		{
+			"no next rel",
+			`</v2/foo/tags/list?n=50>; rel="prev"`,
+			"https://registry-1.docker.io/v2/foo/tags/list",
+			"",
+		},
+		{
+			"empty link",
+			"",
+			"https://registry-1.docker.io/v2/foo/tags/list",
+			"",
+		},
+		{
+			"multiple rels with next",
+			`</v2/foo/tags/list?n=50>; rel="prev", </v2/foo/tags/list?n=50&last=tag99>; rel="next"`,
+			"https://registry-1.docker.io/v2/foo/tags/list",
+			"https://registry-1.docker.io/v2/foo/tags/list?n=50&last=tag99",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parseLinkNext(tt.link, tt.baseURL)
+			if got != tt.want {
+				t.Errorf("parseLinkNext(%q, %q) = %q, want %q", tt.link, tt.baseURL, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestScanDeployedImagesSkipsComments(t *testing.T) {
+	compose := []byte(`
+services:
+  app:
+    image: nextcloud:32.0.6
+    # image: oldimage:1.0.0
+    environment:
+      SOME_IMAGE: nginx:latest
+`)
+	refs, err := ScanDeployedImages(compose)
+	if err != nil {
+		t.Fatalf("ScanDeployedImages() error: %v", err)
+	}
+	if len(refs) != 1 {
+		t.Fatalf("ScanDeployedImages() returned %d refs, want 1 (should skip comments and env vars)", len(refs))
+	}
+	if refs[0].Repo != "nextcloud" {
+		t.Errorf("ref[0].Repo = %q, want %q", refs[0].Repo, "nextcloud")
 	}
 }
 

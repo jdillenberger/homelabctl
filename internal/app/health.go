@@ -94,13 +94,25 @@ func (hc *HealthChecker) CheckContainer(compose *Compose, appDir string) HealthR
 	return HealthResult{Status: HealthStatusHealthy, Detail: fmt.Sprintf("%d container(s) running", len(lines)-1)}
 }
 
+// healthCheckTimeout returns the configured timeout for an app's health check,
+// defaulting to 5 seconds.
+func healthCheckTimeout(meta *AppMeta) time.Duration {
+	if meta.HealthCheck != nil && meta.HealthCheck.Timeout != "" {
+		if d, err := time.ParseDuration(meta.HealthCheck.Timeout); err == nil && d > 0 {
+			return d
+		}
+	}
+	return 5 * time.Second
+}
+
 // CheckApp performs the appropriate health check for an app based on its metadata.
 func (hc *HealthChecker) CheckApp(meta *AppMeta, compose *Compose, appDir string) HealthResult {
 	result := HealthResult{App: meta.Name}
 
 	// Try HTTP health check if configured
 	if meta.HealthCheck != nil && meta.HealthCheck.URL != "" {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		timeout := healthCheckTimeout(meta)
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 
 		r := hc.CheckHTTP(ctx, meta.HealthCheck.URL)

@@ -61,7 +61,7 @@ func (m *Monitor) Record(results []app.HealthResult) error {
 	}
 
 	path := filepath.Join(m.dataDir, historyFile)
-	return os.WriteFile(path, data, 0o644)
+	return os.WriteFile(path, data, 0o600)
 }
 
 // LoadHistory reads health check history from disk.

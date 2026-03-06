@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -36,20 +37,34 @@ func (r ImageRef) FullRepo() string {
 	return r.Namespace + "/" + r.Repo
 }
 
+// isRegistryHost returns true if the segment looks like a registry hostname
+// (contains a dot or a colon for port-based registries like registry.local:5000).
+func isRegistryHost(s string) bool {
+	return strings.ContainsAny(s, ".:")
+}
+
 // ParseImageRef parses a Docker image reference into its components.
+// Supports formats:
+//   - "nginx" -> docker.io/library/nginx:latest
+//   - "gitea/gitea:1.2.3" -> docker.io/gitea/gitea:1.2.3
+//   - "ghcr.io/org/repo:tag" -> ghcr.io/org/repo:tag
+//   - "registry.local:5000/org/repo:tag" -> registry.local:5000/org/repo:tag
 func ParseImageRef(image string) (ImageRef, error) {
 	ref := ImageRef{}
 
-	// Split tag
-	parts := strings.SplitN(image, ":", 2)
-	if len(parts) == 2 {
-		ref.Tag = parts[1]
+	// Split off the tag. The tag is after the last ":" but only if it comes
+	// after the last "/". This avoids confusing "registry:5000/repo" port
+	// with a tag.
+	lastSlash := strings.LastIndex(image, "/")
+	lastColon := strings.LastIndex(image, ":")
+	if lastColon > lastSlash {
+		ref.Tag = image[lastColon+1:]
+		image = image[:lastColon]
 	} else {
 		ref.Tag = "latest"
 	}
 
-	path := parts[0]
-	segments := strings.Split(path, "/")
+	segments := strings.Split(image, "/")
 
 	switch len(segments) {
 	case 1:
@@ -58,17 +73,31 @@ func ParseImageRef(image string) (ImageRef, error) {
 		ref.Namespace = "library"
 		ref.Repo = segments[0]
 	case 2:
-		// e.g. "gitea/gitea" -> docker.io/gitea/gitea
-		ref.Registry = "docker.io"
-		ref.Namespace = segments[0]
-		ref.Repo = segments[1]
+		if isRegistryHost(segments[0]) {
+			// e.g. "registry.local:5000/repo" -> registry.local:5000/library/repo
+			ref.Registry = segments[0]
+			ref.Namespace = "library"
+			ref.Repo = segments[1]
+		} else {
+			// e.g. "gitea/gitea" -> docker.io/gitea/gitea
+			ref.Registry = "docker.io"
+			ref.Namespace = segments[0]
+			ref.Repo = segments[1]
+		}
 	case 3:
 		// e.g. "ghcr.io/immich-app/immich-server"
 		ref.Registry = segments[0]
 		ref.Namespace = segments[1]
 		ref.Repo = segments[2]
 	default:
-		return ref, fmt.Errorf("unsupported image reference format: %s", image)
+		if len(segments) > 3 && isRegistryHost(segments[0]) {
+			// e.g. "ghcr.io/org/suborg/repo" -> registry=ghcr.io, namespace=org/suborg, repo=repo
+			ref.Registry = segments[0]
+			ref.Repo = segments[len(segments)-1]
+			ref.Namespace = strings.Join(segments[1:len(segments)-1], "/")
+		} else {
+			return ref, fmt.Errorf("unsupported image reference format: %s", image)
+		}
 	}
 
 	return ref, nil
@@ -202,41 +231,323 @@ func (r *ImageResolver) GetDigest(ref ImageRef) (string, error) {
 // semverRe matches semantic version tags like v1.2.3, 1.2.3, v1.2.3-beta.
 var semverRe = regexp.MustCompile(`^v?(\d+\.\d+\.\d+)(-[a-zA-Z0-9.]+)?$`)
 
+// SemVer represents a parsed semantic version.
+type SemVer struct {
+	Major int
+	Minor int
+	Patch int
+	Pre   string // pre-release suffix, e.g. "beta", "rc.1"
+}
+
+// String returns the normalized version string (without v prefix).
+func (v SemVer) String() string {
+	s := fmt.Sprintf("%d.%d.%d", v.Major, v.Minor, v.Patch)
+	if v.Pre != "" {
+		s += "-" + v.Pre
+	}
+	return s
+}
+
+// ParseSemver parses a version tag into a SemVer struct.
+// Accepts formats: "1.2.3", "v1.2.3", "1.2.3-beta", "v1.2.3-rc.1".
+func ParseSemver(tag string) (SemVer, error) {
+	m := semverRe.FindStringSubmatch(tag)
+	if m == nil {
+		return SemVer{}, fmt.Errorf("not a semver tag: %s", tag)
+	}
+
+	parts := strings.Split(m[1], ".")
+	major, _ := strconv.Atoi(parts[0])
+	minor, _ := strconv.Atoi(parts[1])
+	patch, _ := strconv.Atoi(parts[2])
+
+	pre := ""
+	if m[2] != "" {
+		pre = m[2][1:] // strip leading "-"
+	}
+
+	return SemVer{Major: major, Minor: minor, Patch: patch, Pre: pre}, nil
+}
+
+// CompareSemver compares two SemVer values.
+// Returns -1 if a < b, 0 if a == b, 1 if a > b.
+// Pre-release versions are considered less than the release version.
+func CompareSemver(a, b SemVer) int {
+	if a.Major != b.Major {
+		if a.Major < b.Major {
+			return -1
+		}
+		return 1
+	}
+	if a.Minor != b.Minor {
+		if a.Minor < b.Minor {
+			return -1
+		}
+		return 1
+	}
+	if a.Patch != b.Patch {
+		if a.Patch < b.Patch {
+			return -1
+		}
+		return 1
+	}
+	// Both have no pre-release: equal
+	if a.Pre == "" && b.Pre == "" {
+		return 0
+	}
+	// Pre-release < release
+	if a.Pre != "" && b.Pre == "" {
+		return -1
+	}
+	if a.Pre == "" && b.Pre != "" {
+		return 1
+	}
+	// Both have pre-release: lexicographic
+	if a.Pre < b.Pre {
+		return -1
+	}
+	if a.Pre > b.Pre {
+		return 1
+	}
+	return 0
+}
+
+// UpgradeType returns "patch", "minor", or "major" based on the difference between two versions.
+func UpgradeType(from, to SemVer) string {
+	if to.Major != from.Major {
+		return "major"
+	}
+	if to.Minor != from.Minor {
+		return "minor"
+	}
+	return "patch"
+}
+
+// VersionUpdate describes an available version upgrade.
+type VersionUpdate struct {
+	CurrentTag string `json:"current_tag"`
+	NewTag     string `json:"new_tag"`
+	Type       string `json:"type"` // "patch", "minor", "major"
+}
+
+// FindNewerVersions queries the registry for the given image ref, filters to semver tags,
+// and returns the latest available update for each upgrade type (patch/minor/major).
+func (r *ImageResolver) FindNewerVersions(ref ImageRef) ([]VersionUpdate, error) {
+	currentVer, err := ParseSemver(ref.Tag)
+	if err != nil {
+		return nil, fmt.Errorf("current tag %q is not semver: %w", ref.Tag, err)
+	}
+
+	tags, err := r.ListTags(ref)
+	if err != nil {
+		return nil, err
+	}
+
+	// Track the latest version for each upgrade type
+	best := map[string]SemVer{}    // type -> best version
+	bestTag := map[string]string{} // type -> original tag string
+
+	for _, tag := range tags {
+		v, err := ParseSemver(tag)
+		if err != nil {
+			continue
+		}
+		// Skip pre-release versions
+		if v.Pre != "" {
+			continue
+		}
+		// Must be newer than current
+		if CompareSemver(v, currentVer) <= 0 {
+			continue
+		}
+
+		utype := UpgradeType(currentVer, v)
+		if prev, exists := best[utype]; !exists || CompareSemver(v, prev) > 0 {
+			best[utype] = v
+			bestTag[utype] = tag
+		}
+	}
+
+	var updates []VersionUpdate
+	for _, utype := range []string{"patch", "minor", "major"} {
+		if tag, ok := bestTag[utype]; ok {
+			updates = append(updates, VersionUpdate{
+				CurrentTag: ref.Tag,
+				NewTag:     tag,
+				Type:       utype,
+			})
+		}
+	}
+	return updates, nil
+}
+
+// ImageEntry represents any image found in a template (not just floating tags).
+type ImageEntry struct {
+	AppName  string
+	FilePath string
+	Image    string
+	Ref      ImageRef
+}
+
+// imageLineRe matches YAML "image:" keys with proper indentation, skipping comments.
+// Requires the line to start with optional whitespace, then "image:", avoiding
+// false matches on commented-out lines or non-image keys.
+var imageLineRe = regexp.MustCompile(`(?m)^\s+image:\s*(.+?)(?:\s*#.*)?$`)
+var templateRe = regexp.MustCompile(`\{\{`)
+
+// scanImages is the shared implementation for scanning image references from template files.
+// When floatingOnly is true, only floating-tagged images are returned.
+func scanImages(tmplFS fs.FS, floatingOnly bool) ([]ImageEntry, error) {
+	var entries []ImageEntry
+
+	err := fs.WalkDir(tmplFS, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+
+		if !strings.HasSuffix(path, "docker-compose.yml.tmpl") {
+			return nil
+		}
+
+		data, err := fs.ReadFile(tmplFS, path)
+		if err != nil {
+			return err
+		}
+
+		matches := imageLineRe.FindAllStringSubmatch(string(data), -1)
+		for _, m := range matches {
+			imageStr := strings.TrimSpace(m[1])
+
+			if templateRe.MatchString(imageStr) {
+				continue
+			}
+
+			ref, err := ParseImageRef(imageStr)
+			if err != nil {
+				continue
+			}
+
+			if floatingOnly && !ref.IsFloating() {
+				continue
+			}
+
+			parts := strings.SplitN(path, "/", 2)
+			appName := parts[0]
+			entries = append(entries, ImageEntry{
+				AppName:  appName,
+				FilePath: path,
+				Image:    imageStr,
+				Ref:      ref,
+			})
+		}
+
+		return nil
+	})
+
+	return entries, err
+}
+
+// ScanAllImages scans all templates for image references, returning all images
+// (not just floating tags).
+func ScanAllImages(tmplFS fs.FS) ([]ImageEntry, error) {
+	return scanImages(tmplFS, false)
+}
+
+// ScanDeployedImages parses image references from a deployed docker-compose.yml file.
+func ScanDeployedImages(data []byte) ([]ImageRef, error) {
+	matches := imageLineRe.FindAllStringSubmatch(string(data), -1)
+
+	var refs []ImageRef
+	for _, m := range matches {
+		imageStr := strings.TrimSpace(m[1])
+		ref, err := ParseImageRef(imageStr)
+		if err != nil {
+			continue
+		}
+		refs = append(refs, ref)
+	}
+	return refs, nil
+}
+
 // ListTags fetches all tags for the given image reference's repository.
+// Follows pagination via the Link header as per the Docker Registry HTTP API v2.
 func (r *ImageResolver) ListTags(ref ImageRef) ([]string, error) {
 	token, err := r.getToken(ref.Registry, ref.FullRepo())
 	if err != nil {
 		return nil, err
 	}
 
-	url := fmt.Sprintf("%s/v2/%s/tags/list", registryAPIBase(ref.Registry), ref.FullRepo())
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
+	baseURL := fmt.Sprintf("%s/v2/%s/tags/list", registryAPIBase(ref.Registry), ref.FullRepo())
+	var allTags []string
+	nextURL := baseURL
+
+	for nextURL != "" {
+		req, err := http.NewRequest("GET", nextURL, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+
+		resp, err := r.client.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("listing tags: %w", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
+			return nil, fmt.Errorf("tag list for %s returned %d", ref.FullRepo(), resp.StatusCode)
+		}
+
+		var result struct {
+			Tags []string `json:"tags"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			resp.Body.Close()
+			return nil, fmt.Errorf("decoding tags: %w", err)
+		}
+		resp.Body.Close()
+
+		allTags = append(allTags, result.Tags...)
+
+		// Follow pagination via Link header: <url>; rel="next"
+		nextURL = ""
+		if link := resp.Header.Get("Link"); link != "" {
+			nextURL = parseLinkNext(link, baseURL)
+		}
 	}
 
-	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
-	}
+	return allTags, nil
+}
 
-	resp, err := r.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("listing tags: %w", err)
+// parseLinkNext extracts the "next" URL from a Link header value.
+// Format: </v2/repo/tags/list?n=100&last=tag>; rel="next"
+func parseLinkNext(link, baseURL string) string {
+	for _, part := range strings.Split(link, ",") {
+		part = strings.TrimSpace(part)
+		if !strings.Contains(part, `rel="next"`) {
+			continue
+		}
+		start := strings.Index(part, "<")
+		end := strings.Index(part, ">")
+		if start < 0 || end < 0 || end <= start {
+			continue
+		}
+		ref := part[start+1 : end]
+		// The link may be relative (just a path) or absolute
+		if strings.HasPrefix(ref, "http://") || strings.HasPrefix(ref, "https://") {
+			return ref
+		}
+		// Relative URL: resolve against the base
+		base := baseURL
+		if idx := strings.Index(base, "/v2/"); idx >= 0 {
+			base = base[:idx]
+		}
+		return base + ref
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("tag list for %s returned %d", ref.FullRepo(), resp.StatusCode)
-	}
-
-	var result struct {
-		Tags []string `json:"tags"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("decoding tags: %w", err)
-	}
-
-	return result.Tags, nil
+	return ""
 }
 
 // ResolveResult holds the result of resolving a floating tag.
@@ -269,26 +580,37 @@ func (r *ImageResolver) ResolveFloatingTag(ref ImageRef) (*ResolveResult, error)
 		return nil, fmt.Errorf("listing tags for %s: %w", ref.String(), err)
 	}
 
-	// Filter to semver tags and sort descending
-	var semverTags []string
-	for _, tag := range tags {
-		if semverRe.MatchString(tag) && !floatingTags[tag] {
-			semverTags = append(semverTags, tag)
-		}
+	// Filter to semver tags and sort descending by actual semver comparison
+	type taggedVersion struct {
+		tag string
+		ver SemVer
 	}
-	sort.Sort(sort.Reverse(sort.StringSlice(semverTags)))
+	var semverTagged []taggedVersion
+	for _, tag := range tags {
+		if floatingTags[tag] {
+			continue
+		}
+		v, err := ParseSemver(tag)
+		if err != nil {
+			continue
+		}
+		semverTagged = append(semverTagged, taggedVersion{tag: tag, ver: v})
+	}
+	sort.Slice(semverTagged, func(i, j int) bool {
+		return CompareSemver(semverTagged[i].ver, semverTagged[j].ver) > 0 // descending
+	})
 
 	// Find the highest semver tag with the same digest
-	for _, tag := range semverTags {
+	for _, tv := range semverTagged {
 		candidate := ref
-		candidate.Tag = tag
+		candidate.Tag = tv.tag
 		tagDigest, err := r.GetDigest(candidate)
 		if err != nil {
 			continue
 		}
 		if tagDigest == digest {
-			result.PinnedTag = tag
-			candidate.Tag = tag
+			result.PinnedTag = tv.tag
+			candidate.Tag = tv.tag
 			result.PinnedImage = candidate.String()
 			break
 		}
@@ -307,53 +629,18 @@ type FloatingTagEntry struct {
 
 // ScanFloatingTags scans all templates in the registry for floating image tags.
 func ScanFloatingTags(tmplFS fs.FS) ([]FloatingTagEntry, error) {
-	imageRe := regexp.MustCompile(`image:\s*(.+)`)
-	templateRe := regexp.MustCompile(`\{\{`)
-
-	var entries []FloatingTagEntry
-
-	err := fs.WalkDir(tmplFS, ".", func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return err
+	images, err := scanImages(tmplFS, true)
+	if err != nil {
+		return nil, err
+	}
+	entries := make([]FloatingTagEntry, len(images))
+	for i, img := range images {
+		entries[i] = FloatingTagEntry{
+			AppName:  img.AppName,
+			FilePath: img.FilePath,
+			Image:    img.Image,
+			Ref:      img.Ref,
 		}
-
-		if !strings.HasSuffix(path, "docker-compose.yml.tmpl") {
-			return nil
-		}
-
-		data, err := fs.ReadFile(tmplFS, path)
-		if err != nil {
-			return err
-		}
-
-		matches := imageRe.FindAllStringSubmatch(string(data), -1)
-		for _, m := range matches {
-			imageStr := strings.TrimSpace(m[1])
-
-			// Skip dynamic template tags like {{index . "desktop_env"}}
-			if templateRe.MatchString(imageStr) {
-				continue
-			}
-
-			ref, err := ParseImageRef(imageStr)
-			if err != nil {
-				continue
-			}
-
-			if ref.IsFloating() {
-				parts := strings.SplitN(path, "/", 2)
-				appName := parts[0]
-				entries = append(entries, FloatingTagEntry{
-					AppName:  appName,
-					FilePath: path,
-					Image:    imageStr,
-					Ref:      ref,
-				})
-			}
-		}
-
-		return nil
-	})
-
-	return entries, err
+	}
+	return entries, nil
 }

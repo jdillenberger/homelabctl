@@ -63,7 +63,7 @@ func (s *Store) SaveRules(rules []Rule) error {
 	}
 
 	path := filepath.Join(s.dataDir, rulesFile)
-	return os.WriteFile(path, data, 0o644)
+	return os.WriteFile(path, data, 0o600)
 }
 
 // AddRule adds a new rule and persists it.
@@ -144,5 +144,5 @@ func (s *Store) AppendHistory(a Alert) error {
 	}
 
 	path := filepath.Join(s.dataDir, historyFile)
-	return os.WriteFile(path, data, 0o644)
+	return os.WriteFile(path, data, 0o600)
 }

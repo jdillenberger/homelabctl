@@ -109,7 +109,7 @@ func (kc *KeycloakClient) CreateOIDCClient(clientID, clientName, redirectURI str
 		return fmt.Errorf("not authenticated — call Authenticate() first")
 	}
 
-	clientsURL := fmt.Sprintf("%s/admin/realms/%s/clients", kc.baseURL, kc.realm)
+	clientsURL := fmt.Sprintf("%s/admin/realms/%s/clients", kc.baseURL, url.PathEscape(kc.realm))
 
 	payload := keycloakClientRepresentation{
 		ClientID:                clientID,
@@ -160,7 +160,7 @@ func (kc *KeycloakClient) DeleteClient(clientID string) error {
 		return fmt.Errorf("resolving client UUID: %w", err)
 	}
 
-	clientURL := fmt.Sprintf("%s/admin/realms/%s/clients/%s", kc.baseURL, kc.realm, uuid)
+	clientURL := fmt.Sprintf("%s/admin/realms/%s/clients/%s", kc.baseURL, url.PathEscape(kc.realm), uuid)
 
 	req, err := http.NewRequest(http.MethodDelete, clientURL, nil)
 	if err != nil {
@@ -199,7 +199,7 @@ func (kc *KeycloakClient) GetClientSecret(clientID string) (string, error) {
 		return "", fmt.Errorf("resolving client UUID: %w", err)
 	}
 
-	secretURL := fmt.Sprintf("%s/admin/realms/%s/clients/%s/client-secret", kc.baseURL, kc.realm, uuid)
+	secretURL := fmt.Sprintf("%s/admin/realms/%s/clients/%s/client-secret", kc.baseURL, url.PathEscape(kc.realm), uuid)
 
 	req, err := http.NewRequest(http.MethodGet, secretURL, nil)
 	if err != nil {
@@ -238,7 +238,7 @@ type keycloakClientListEntry struct {
 
 // getClientUUID resolves a clientID (e.g. "my-app") to its internal Keycloak UUID.
 func (kc *KeycloakClient) getClientUUID(clientID string) (string, error) {
-	listURL := fmt.Sprintf("%s/admin/realms/%s/clients?clientId=%s", kc.baseURL, kc.realm, url.QueryEscape(clientID))
+	listURL := fmt.Sprintf("%s/admin/realms/%s/clients?clientId=%s", kc.baseURL, url.PathEscape(kc.realm), url.QueryEscape(clientID))
 
 	req, err := http.NewRequest(http.MethodGet, listURL, nil)
 	if err != nil {

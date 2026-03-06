@@ -72,6 +72,9 @@ func init() {
 	appsPinCmd.Flags().Bool("update", false, "Rewrite template files with pinned versions")
 	appsPinCmd.ValidArgsFunction = completeTemplateNames
 
+	appsCmd.AddCommand(appsOutdatedCmd)
+	appsOutdatedCmd.ValidArgsFunction = completeDeployedApps
+
 	// Dynamic completion: template names for deploy/info, deployed apps for the rest
 	appsDeployCmd.ValidArgsFunction = completeTemplateNames
 	appsInfoCmd.ValidArgsFunction = completeTemplateNames
