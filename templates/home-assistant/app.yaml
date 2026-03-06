@@ -1,0 +1,32 @@
+name: home-assistant
+description: Open-source home automation platform
+category: automation
+version: "2025.3"
+ports:
+  - host: 8123
+    container: 8123
+    protocol: tcp
+    description: Web UI
+    value_name: web_port
+values:
+  - name: web_port
+    description: Web UI port
+    default: "8123"
+  - name: timezone
+    description: Timezone
+    default: "UTC"
+dependencies:
+  - docker
+volumes:
+  - name: config
+    container: /config
+    description: Home Assistant configuration
+health_check:
+  url: "http://localhost:{{.web_port}}"
+  interval: 30s
+backup:
+  paths:
+    - config
+requirements:
+  min_ram: 512M
+  arch: [amd64, arm64]

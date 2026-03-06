@@ -1,0 +1,39 @@
+name: stirling-pdf
+description: All-in-one PDF tools for merging, splitting, converting, and more
+category: productivity
+version: "0.46.1"
+ports:
+  - host: 8080
+    container: 8080
+    protocol: tcp
+    description: Web UI
+    value_name: web_port
+values:
+  - name: web_port
+    description: Web UI port
+    default: "8080"
+  - name: timezone
+    description: Timezone
+    default: "UTC"
+dependencies:
+  - docker
+volumes:
+  - name: data
+    container: /usr/share/tessdata
+    description: Tessdata (OCR training data)
+  - name: configs
+    container: /configs
+    description: Stirling PDF configuration
+  - name: logs
+    container: /logs
+    description: Application logs
+health_check:
+  url: "http://localhost:{{.web_port}}"
+  interval: 30s
+backup:
+  paths:
+    - configs
+    - data
+requirements:
+  min_ram: 256M
+  arch: [amd64, arm64]

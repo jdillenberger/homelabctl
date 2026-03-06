@@ -1,0 +1,38 @@
+services:
+  navidrome:
+    image: deluan/navidrome:0.53.3
+    container_name: navidrome
+    restart: unless-stopped
+    ports:
+      - "{{index . "web_port"}}:4533"
+    environment:
+      - TZ={{index . "timezone"}}
+      - ND_SCANSCHEDULE=1h
+      - ND_LOGLEVEL=info
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          pids: 200
+    volumes:
+      - {{index . "data_dir"}}/data:/data
+      - {{index . "music_path"}}:/music:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:4533/ping || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - {{index . "network"}}
+
+networks:
+  {{index . "network"}}:
+    external: true

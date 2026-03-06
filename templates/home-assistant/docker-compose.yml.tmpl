@@ -1,0 +1,35 @@
+# NOTE: For device discovery (Zigbee, Z-Wave, Bluetooth, etc.), consider using
+# network_mode: host and/or privileged: true instead of standard port mapping.
+services:
+  home-assistant:
+    image: ghcr.io/home-assistant/home-assistant:2025.3
+    container_name: home-assistant
+    restart: unless-stopped
+    ports:
+      - "{{index . "web_port"}}:8123/tcp"
+    environment:
+      - TZ={{index . "timezone"}}
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          pids: 300
+    volumes:
+      - {{index . "data_dir"}}/config:/config
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8123 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - {{index . "network"}}
+
+networks:
+  {{index . "network"}}:
+    external: true

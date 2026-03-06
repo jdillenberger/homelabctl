@@ -1,0 +1,77 @@
+services:
+  vikunja:
+    image: vikunja/vikunja:2.1.0
+    container_name: vikunja
+    restart: unless-stopped
+    ports:
+      - "{{index . "web_port"}}:3456"
+    environment:
+      - VIKUNJA_SERVICE_JWTSECRET={{index . "secret_key"}}
+      - VIKUNJA_DATABASE_TYPE=postgres
+      - VIKUNJA_DATABASE_HOST=vikunja-db
+      - VIKUNJA_DATABASE_DATABASE=vikunja
+      - VIKUNJA_DATABASE_USER=vikunja
+      - VIKUNJA_DATABASE_PASSWORD={{index . "db_password"}}
+      - TZ={{index . "timezone"}}
+    volumes:
+      - {{index . "data_dir"}}/files:/app/vikunja/files
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3456/api/v1/info || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          pids: 200
+    depends_on:
+      vikunja-db:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - {{index . "network"}}
+
+  vikunja-db:
+    image: postgres:16-alpine
+    container_name: vikunja-db
+    restart: unless-stopped
+    shm_size: '256m'
+    environment:
+      - POSTGRES_DB=vikunja
+      - POSTGRES_USER=vikunja
+      - POSTGRES_PASSWORD={{index . "db_password"}}
+      - TZ={{index . "timezone"}}
+    volumes:
+      - {{index . "data_dir"}}/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vikunja"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          pids: 100
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - {{index . "network"}}
+
+networks:
+  {{index . "network"}}:
+    external: true

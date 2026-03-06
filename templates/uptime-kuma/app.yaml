@@ -1,0 +1,32 @@
+name: uptime-kuma
+description: Self-hosted uptime monitoring tool
+category: infra
+version: "2.2.0"
+ports:
+  - host: 3001
+    container: 3001
+    protocol: tcp
+    description: Web UI
+    value_name: web_port
+values:
+  - name: web_port
+    description: Web UI port
+    default: "3001"
+  - name: timezone
+    description: Timezone
+    default: "UTC"
+dependencies:
+  - docker
+volumes:
+  - name: data
+    container: /app/data
+    description: Uptime Kuma data
+health_check:
+  url: "http://localhost:{{.web_port}}"
+  interval: 30s
+backup:
+  paths:
+    - data
+requirements:
+  min_ram: 256M
+  arch: [amd64, arm64]

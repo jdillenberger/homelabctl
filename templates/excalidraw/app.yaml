@@ -1,0 +1,25 @@
+name: excalidraw
+description: Collaborative virtual whiteboard for sketching hand-drawn like diagrams
+category: productivity
+version: "latest"
+ports:
+  - host: 3030
+    container: 80
+    protocol: tcp
+    description: Web UI
+    value_name: web_port
+values:
+  - name: web_port
+    description: Web UI port
+    default: "3030"
+  - name: timezone
+    description: Timezone
+    default: "UTC"
+dependencies:
+  - docker
+health_check:
+  url: "http://localhost:{{.web_port}}"
+  interval: 30s
+requirements:
+  min_ram: 128M
+  arch: [amd64, arm64]

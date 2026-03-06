@@ -1,0 +1,37 @@
+services:
+  vaultwarden:
+    image: vaultwarden/server:1.35.4
+    container_name: vaultwarden
+    restart: unless-stopped
+    ports:
+      - "{{index . "web_port"}}:80"
+    environment:
+      - TZ={{index . "timezone"}}
+      - ADMIN_TOKEN={{index . "admin_token"}}
+      - SIGNUPS_ALLOWED={{index . "signups_allowed"}}
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          pids: 200
+    volumes:
+      - {{index . "data_dir"}}/data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:80 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - {{index . "network"}}
+
+networks:
+  {{index . "network"}}:
+    external: true

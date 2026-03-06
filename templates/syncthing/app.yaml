@@ -1,0 +1,48 @@
+name: syncthing
+description: Peer-to-peer file synchronization
+category: infra
+version: "2.0.15"
+ports:
+  - host: 8384
+    container: 8384
+    protocol: tcp
+    description: Web UI
+    value_name: web_port
+  - host: 22000
+    container: 22000
+    protocol: tcp
+    description: Sync (TCP)
+    value_name: sync_port
+  - host: 22000
+    container: 22000
+    protocol: udp
+    description: Sync (QUIC)
+    value_name: sync_port
+values:
+  - name: web_port
+    description: Web UI port
+    default: "8384"
+  - name: sync_port
+    description: Sync protocol port
+    default: "22000"
+  - name: timezone
+    description: Timezone
+    default: "UTC"
+dependencies:
+  - docker
+volumes:
+  - name: config
+    container: /var/syncthing/config
+    description: Syncthing configuration
+  - name: data
+    container: /var/syncthing
+    description: Syncthing data
+health_check:
+  url: "http://localhost:{{.web_port}}/rest/noauth/health"
+  interval: 30s
+backup:
+  paths:
+    - config
+requirements:
+  min_ram: 128M
+  arch: [amd64, arm64]

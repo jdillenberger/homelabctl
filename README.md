@@ -128,24 +128,41 @@ homelabctl templates new myapp
 
 | Template | Description |
 |---|---|
-| adguard | DNS ad blocker |
-| beszel | Server monitoring |
+| adguard | Network-wide ad and tracker blocking DNS server |
+| audiobookshelf | Self-hosted audiobook and podcast server |
+| beszel | Lightweight server monitoring dashboard |
+| bookstack | Wiki and knowledge base platform |
+| calibre-web | Web-based ebook library manager |
 | code-server | VS Code in the browser |
-| gitea | Lightweight Git hosting |
-| gitlab | Full Git platform |
-| hedgedoc | Collaborative markdown |
-| immich | Photo management |
-| keycloak | Identity and access management |
-| mastodon | Federated social network |
-| matrix | Decentralized messaging |
-| mattermost | Team messaging |
-| nextcloud | File sync and collaboration |
-| nginx-proxy-manager | Reverse proxy with UI |
-| obsidian | Note-taking (web sync) |
-| openclaw | Legal document management |
-| paperless-ngx | Document management |
-| portainer | Container management UI |
-| webtop | Linux desktop in the browser |
+| crowdsec | Collaborative intrusion prevention system |
+| excalidraw | Collaborative virtual whiteboard |
+| gitea | Lightweight self-hosted Git hosting |
+| gitlab | Full DevOps platform with Git hosting and CI/CD |
+| grafana | Monitoring stack with Grafana and Prometheus |
+| hedgedoc | Collaborative real-time markdown editor |
+| home-assistant | Open-source home automation platform |
+| immich | Self-hosted photo and video management |
+| jellyfin | Open-source media server |
+| keycloak | Identity and access management / SSO server |
+| mastodon | Decentralized social network (Fediverse) |
+| matrix | Matrix homeserver for decentralized messaging |
+| mattermost | Open-source team messaging |
+| minio | S3-compatible object storage |
+| navidrome | Modern music server and streamer |
+| nextcloud | Self-hosted file sync and collaboration |
+| nginx-proxy-manager | Reverse proxy with Let's Encrypt support |
+| ntfy | Self-hosted push notification service |
+| obsidian | Note-taking with LiveSync backend |
+| openclaw | AI coding assistant with gateway and CLI |
+| paperless-ngx | Document management with OCR |
+| portainer | Docker container management UI |
+| stirling-pdf | All-in-one PDF tools |
+| syncthing | Peer-to-peer file synchronization |
+| uptime-kuma | Self-hosted uptime monitoring |
+| vaultwarden | Bitwarden-compatible password manager |
+| vikunja | Task and project management |
+| webtop | Full Linux desktop in the browser |
+| wireguard | WireGuard VPN server with web UI |
 
 ## Web Dashboard
 

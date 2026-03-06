@@ -1,0 +1,38 @@
+name: jellyfin
+description: Open-source media server for streaming movies, TV, music, and more
+category: media
+version: "10.10.6"
+ports:
+  - host: 8096
+    container: 8096
+    protocol: tcp
+    description: Web UI
+    value_name: web_port
+values:
+  - name: web_port
+    description: Web UI port
+    default: "8096"
+  - name: media_path
+    description: Path to media library
+  - name: timezone
+    description: Timezone
+    default: "UTC"
+dependencies:
+  - docker
+volumes:
+  - name: config
+    container: /config
+    description: Jellyfin configuration and metadata
+  - name: cache
+    container: /cache
+    description: Jellyfin transcoding cache
+health_check:
+  url: "http://localhost:{{.web_port}}/health"
+  interval: 60s
+backup:
+  paths:
+    - config
+requirements:
+  min_ram: 1G
+  min_disk: 10G
+  arch: [amd64, arm64]

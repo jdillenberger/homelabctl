@@ -1,0 +1,48 @@
+name: minio
+description: S3-compatible object storage
+category: infra
+version: "RELEASE.2025-02-28T09-55-16Z"
+ports:
+  - host: 9000
+    container: 9000
+    protocol: tcp
+    description: API
+    value_name: api_port
+  - host: 9001
+    container: 9001
+    protocol: tcp
+    description: Console
+    value_name: console_port
+values:
+  - name: api_port
+    description: S3 API port
+    default: "9000"
+  - name: console_port
+    description: Web Console port
+    default: "9001"
+  - name: root_user
+    description: Root user
+    default: "admin"
+  - name: root_password
+    description: Root password
+    secret: true
+    auto_gen: password
+  - name: timezone
+    description: Timezone
+    default: "UTC"
+dependencies:
+  - docker
+volumes:
+  - name: data
+    container: /data
+    description: MinIO data
+health_check:
+  url: "http://localhost:{{.api_port}}/minio/health/live"
+  interval: 30s
+backup:
+  paths:
+    - data
+requirements:
+  min_ram: 512M
+  min_disk: 10G
+  arch: [amd64, arm64]

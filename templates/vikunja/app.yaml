@@ -1,0 +1,47 @@
+name: vikunja
+description: Open-source task and project management
+category: productivity
+version: "2.1.0"
+ports:
+  - host: 3456
+    container: 3456
+    protocol: tcp
+    description: Web UI
+    value_name: web_port
+values:
+  - name: web_port
+    description: Web UI port
+    default: "3456"
+  - name: secret_key
+    description: JWT secret key
+    secret: true
+    auto_gen: password
+  - name: db_password
+    description: PostgreSQL password
+    secret: true
+    auto_gen: password
+  - name: timezone
+    description: Timezone
+    default: "UTC"
+dependencies:
+  - docker
+volumes:
+  - name: files
+    container: /app/vikunja/files
+    description: Vikunja files
+  - name: db
+    container: /var/lib/postgresql/data
+    description: PostgreSQL data
+health_check:
+  url: "http://localhost:{{.web_port}}/api/v1/info"
+  interval: 30s
+backup:
+  paths:
+    - files
+    - db
+  pre_hook: "docker exec vikunja-db pg_dumpall -U vikunja > /tmp/vikunja-db-backup.sql"
+  post_hook: "rm -f /tmp/vikunja-db-backup.sql"
+requirements:
+  min_ram: 256M
+  min_disk: 2G
+  arch: [amd64, arm64]

@@ -1,0 +1,38 @@
+services:
+  calibre-web:
+    image: lscr.io/linuxserver/calibre-web:0.6.24
+    container_name: calibre-web
+    restart: unless-stopped
+    ports:
+      - "{{index . "web_port"}}:8083"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ={{index . "timezone"}}
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          pids: 200
+    volumes:
+      - {{index . "data_dir"}}/config:/config
+      - {{if index . "books_path"}}{{index . "books_path"}}{{else}}{{index . "data_dir"}}/books{{end}}:/books
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8083 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - {{index . "network"}}
+
+networks:
+  {{index . "network"}}:
+    external: true

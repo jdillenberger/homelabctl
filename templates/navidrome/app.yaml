@@ -1,0 +1,34 @@
+name: navidrome
+description: Modern music server and streamer
+category: media
+version: "0.53.3"
+ports:
+  - host: 4533
+    container: 4533
+    protocol: tcp
+    description: Web UI
+    value_name: web_port
+values:
+  - name: web_port
+    description: Web UI port
+    default: "4533"
+  - name: music_path
+    description: Path to music library on host
+  - name: timezone
+    description: Timezone
+    default: "UTC"
+dependencies:
+  - docker
+volumes:
+  - name: data
+    container: /data
+    description: Navidrome data
+health_check:
+  url: "http://localhost:{{.web_port}}/ping"
+  interval: 30s
+backup:
+  paths:
+    - data
+requirements:
+  min_ram: 128M
+  arch: [amd64, arm64]

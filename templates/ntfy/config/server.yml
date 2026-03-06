@@ -1,0 +1,5 @@
+base-url: "http://localhost"
+listen-http: ":80"
+cache-file: "/var/cache/ntfy/cache.db"
+cache-duration: "12h"
+behind-proxy: false

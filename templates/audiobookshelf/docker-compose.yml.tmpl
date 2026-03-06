@@ -1,0 +1,38 @@
+services:
+  audiobookshelf:
+    image: ghcr.io/advplyr/audiobookshelf:2.32.1
+    container_name: audiobookshelf
+    restart: unless-stopped
+    ports:
+      - "{{index . "web_port"}}:80"
+    environment:
+      - TZ={{index . "timezone"}}
+    volumes:
+      - {{index . "audiobooks_path"}}:/audiobooks
+      - {{index . "podcasts_path"}}:/podcasts
+      - {{index . "data_dir"}}/config:/config
+      - {{index . "data_dir"}}/metadata:/metadata
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:80/healthcheck || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          pids: 200
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - {{index . "network"}}
+
+networks:
+  {{index . "network"}}:
+    external: true

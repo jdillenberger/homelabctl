@@ -1,0 +1,40 @@
+name: audiobookshelf
+description: Self-hosted audiobook and podcast server
+category: media
+version: "2.32.1"
+ports:
+  - host: 13378
+    container: 80
+    protocol: tcp
+    description: Web UI
+    value_name: web_port
+values:
+  - name: web_port
+    description: Web UI port
+    default: "13378"
+  - name: audiobooks_path
+    description: Path to audiobooks library
+  - name: podcasts_path
+    description: Path to podcasts library
+  - name: timezone
+    description: Timezone
+    default: "UTC"
+dependencies:
+  - docker
+volumes:
+  - name: config
+    container: /config
+    description: Audiobookshelf configuration
+  - name: metadata
+    container: /metadata
+    description: Audiobookshelf metadata
+health_check:
+  url: "http://localhost:{{.web_port}}"
+  interval: 30s
+backup:
+  paths:
+    - config
+    - metadata
+requirements:
+  min_ram: 256M
+  arch: [amd64, arm64]

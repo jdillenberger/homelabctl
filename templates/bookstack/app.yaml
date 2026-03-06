@@ -1,0 +1,46 @@
+name: bookstack
+description: Wiki and knowledge base platform
+category: productivity
+version: "25.02"
+ports:
+  - host: 6875
+    container: 443
+    protocol: tcp
+    description: Web UI
+    value_name: web_port
+values:
+  - name: web_port
+    description: Web UI port
+    default: "6875"
+  - name: db_password
+    description: MariaDB password
+    secret: true
+    auto_gen: password
+  - name: app_url
+    description: Application URL
+    default: "https://bookstack.example.com"
+  - name: timezone
+    description: Timezone
+    default: "UTC"
+dependencies:
+  - docker
+volumes:
+  - name: config
+    container: /config
+    description: BookStack configuration and data
+  - name: db
+    container: /var/lib/mysql
+    description: MariaDB data
+health_check:
+  url: "https://localhost:{{.web_port}}"
+  interval: 60s
+backup:
+  paths:
+    - config
+    - db
+  pre_hook: "docker exec bookstack-db sh -c 'mariadb-dump -u bookstack -p\"$MYSQL_PASSWORD\" bookstack' > /tmp/bookstack-db-backup.sql"
+  post_hook: "rm -f /tmp/bookstack-db-backup.sql"
+requirements:
+  min_ram: 512M
+  min_disk: 5G
+  arch: [amd64, arm64]

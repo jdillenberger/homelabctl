@@ -1,0 +1,34 @@
+name: calibre-web
+description: Web-based ebook library manager powered by Calibre
+category: media
+version: "0.6.24"
+ports:
+  - host: 8083
+    container: 8083
+    protocol: tcp
+    description: Web UI
+    value_name: web_port
+values:
+  - name: web_port
+    description: Web UI port
+    default: "8083"
+  - name: books_path
+    description: Path to Calibre library
+  - name: timezone
+    description: Timezone
+    default: "UTC"
+dependencies:
+  - docker
+volumes:
+  - name: config
+    container: /config
+    description: Calibre-web configuration and database
+health_check:
+  url: "http://localhost:{{.web_port}}"
+  interval: 60s
+backup:
+  paths:
+    - config
+requirements:
+  min_ram: 128M
+  arch: [amd64, arm64]

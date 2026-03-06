@@ -1,0 +1,36 @@
+name: crowdsec
+description: Collaborative intrusion prevention system
+category: security
+version: "v1.6.4"
+ports:
+  - host: 8080
+    container: 8080
+    protocol: tcp
+    description: API port
+    value_name: api_port
+values:
+  - name: api_port
+    description: CrowdSec API port
+    default: "8080"
+  - name: timezone
+    description: Timezone
+    default: "UTC"
+dependencies:
+  - docker
+volumes:
+  - name: config
+    container: /etc/crowdsec
+    description: CrowdSec configuration
+  - name: data
+    container: /var/lib/crowdsec/data
+    description: CrowdSec data
+health_check:
+  url: "http://localhost:{{.api_port}}/health"
+  interval: 30s
+backup:
+  paths:
+    - config
+    - data
+requirements:
+  min_ram: 256M
+  arch: [amd64, arm64]

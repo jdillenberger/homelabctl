@@ -1,0 +1,39 @@
+name: vaultwarden
+description: Bitwarden-compatible password manager
+category: security
+version: "1.35.4"
+ports:
+  - host: 8222
+    container: 80
+    protocol: tcp
+    description: Web UI
+    value_name: web_port
+values:
+  - name: web_port
+    description: Web UI port
+    default: "8222"
+  - name: admin_token
+    description: Admin panel token
+    secret: true
+    auto_gen: password
+  - name: signups_allowed
+    description: Allow new user signups
+    default: "false"
+  - name: timezone
+    description: Timezone
+    default: "UTC"
+dependencies:
+  - docker
+volumes:
+  - name: data
+    container: /data
+    description: Vaultwarden data
+health_check:
+  url: "http://localhost:{{.web_port}}"
+  interval: 30s
+backup:
+  paths:
+    - data
+requirements:
+  min_ram: 128M
+  arch: [amd64, arm64]

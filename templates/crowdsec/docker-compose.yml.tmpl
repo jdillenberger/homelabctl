@@ -1,0 +1,38 @@
+services:
+  crowdsec:
+    image: crowdsecurity/crowdsec:v1.6.4
+    container_name: crowdsec
+    restart: unless-stopped
+    ports:
+      - "{{index . "api_port"}}:8080"
+    environment:
+      - TZ={{index . "timezone"}}
+      - COLLECTIONS=crowdsecurity/linux
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          pids: 200
+    volumes:
+      - {{index . "data_dir"}}/config:/etc/crowdsec
+      - {{index . "data_dir"}}/data:/var/lib/crowdsec/data
+      - /var/log:/var/log:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - {{index . "network"}}
+
+networks:
+  {{index . "network"}}:
+    external: true

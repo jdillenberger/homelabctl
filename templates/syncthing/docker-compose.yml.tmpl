@@ -1,0 +1,39 @@
+services:
+  syncthing:
+    image: syncthing/syncthing:2.0.15
+    container_name: syncthing
+    restart: unless-stopped
+    ports:
+      - "{{index . "web_port"}}:8384"
+      - "{{index . "sync_port"}}:22000/tcp"
+      - "{{index . "sync_port"}}:22000/udp"
+      - "21027:21027/udp"
+    environment:
+      - TZ={{index . "timezone"}}
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          pids: 200
+    volumes:
+      - {{index . "data_dir"}}/config:/var/syncthing/config
+      - {{index . "data_dir"}}/data:/var/syncthing
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8384/rest/noauth/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - {{index . "network"}}
+
+networks:
+  {{index . "network"}}:
+    external: true
