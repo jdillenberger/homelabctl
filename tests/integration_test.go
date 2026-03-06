@@ -125,7 +125,7 @@ func TestIntegrationAppLifecycle(t *testing.T) {
 
 	// Remove
 	t.Run("remove", func(t *testing.T) {
-		out := runExpectSuccess("apps", "remove", appName)
+		out := runExpectSuccess("apps", "remove", appName, "-f")
 		if !strings.Contains(out, "removed") {
 			t.Errorf("expected remove message, got: %s", out)
 		}
