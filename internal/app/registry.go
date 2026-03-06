@@ -22,7 +22,7 @@ type AppMeta struct {
 	HealthCheck    *HealthCheck    `yaml:"health_check"`
 	Backup         *BackupMeta     `yaml:"backup"`
 	Requirements   *Requirements   `yaml:"requirements"`
-	PostDeployInfo *PostDeployInfo  `yaml:"post_deploy_info"`
+	PostDeployInfo *PostDeployInfo `yaml:"post_deploy_info"`
 	Hooks          *HooksMeta      `yaml:"hooks"`
 }
 
@@ -69,9 +69,9 @@ type Requirements struct {
 
 // PostDeployInfo holds information displayed after a successful deployment.
 type PostDeployInfo struct {
-	AccessURL   string   `yaml:"access_url"`   // Go template, e.g. "http://{{.hostname}}.{{.domain}}:{{.web_port}}"
-	Credentials string   `yaml:"credentials"`  // e.g. "admin / value of admin_password"
-	Notes       []string `yaml:"notes"`         // First-time setup steps
+	AccessURL   string   `yaml:"access_url"`  // Go template, e.g. "http://{{.hostname}}.{{.domain}}:{{.web_port}}"
+	Credentials string   `yaml:"credentials"` // e.g. "admin / value of admin_password"
+	Notes       []string `yaml:"notes"`       // First-time setup steps
 }
 
 // HooksMeta defines lifecycle hooks for an app.
@@ -91,8 +91,8 @@ type Hook struct {
 
 // Registry manages available app templates.
 type Registry struct {
-	apps     map[string]*AppMeta
-	tmplFS   fs.FS
+	apps   map[string]*AppMeta
+	tmplFS fs.FS
 }
 
 // NewRegistry scans the given filesystem and loads all app metadata.

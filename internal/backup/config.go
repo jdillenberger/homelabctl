@@ -37,11 +37,11 @@ func GenerateConfig(appName string, meta *app.AppMeta, backupCfg config.BackupCo
 	if meta.Backup != nil {
 		if meta.Backup.PreHook != "" {
 			b.WriteString("\nbefore_actions:\n")
-			b.WriteString(fmt.Sprintf("  - \"%s\"\n", meta.Backup.PreHook))
+			b.WriteString(fmt.Sprintf("  - %q\n", meta.Backup.PreHook))
 		}
 		if meta.Backup.PostHook != "" {
 			b.WriteString("\nafter_actions:\n")
-			b.WriteString(fmt.Sprintf("  - \"%s\"\n", meta.Backup.PostHook))
+			b.WriteString(fmt.Sprintf("  - %q\n", meta.Backup.PostHook))
 		}
 	}
 

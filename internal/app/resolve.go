@@ -200,7 +200,7 @@ func (r *ImageResolver) GetDigest(ref ImageRef) (string, error) {
 	}
 
 	url := fmt.Sprintf("%s/v2/%s/manifests/%s", registryAPIBase(ref.Registry), ref.FullRepo(), ref.Tag)
-	req, err := http.NewRequest("HEAD", url, nil)
+	req, err := http.NewRequest("HEAD", url, http.NoBody)
 	if err != nil {
 		return "", err
 	}
@@ -482,7 +482,7 @@ func (r *ImageResolver) ListTags(ref ImageRef) ([]string, error) {
 	nextURL := baseURL
 
 	for nextURL != "" {
-		req, err := http.NewRequest("GET", nextURL, nil)
+		req, err := http.NewRequest("GET", nextURL, http.NoBody)
 		if err != nil {
 			return nil, err
 		}
@@ -552,12 +552,12 @@ func parseLinkNext(link, baseURL string) string {
 
 // ResolveResult holds the result of resolving a floating tag.
 type ResolveResult struct {
-	Image         string // original image string
-	FloatingTag   string // e.g. "latest"
-	Digest        string // digest of the floating tag
-	PinnedTag     string // highest semver tag with same digest (if found)
-	PinnedImage   string // full image string with pinned tag
-	TemplateFile  string // source template file path
+	Image        string // original image string
+	FloatingTag  string // e.g. "latest"
+	Digest       string // digest of the floating tag
+	PinnedTag    string // highest semver tag with same digest (if found)
+	PinnedImage  string // full image string with pinned tag
+	TemplateFile string // source template file path
 }
 
 // ResolveFloatingTag resolves a floating tag to the highest semver tag with the same digest.
@@ -635,12 +635,7 @@ func ScanFloatingTags(tmplFS fs.FS) ([]FloatingTagEntry, error) {
 	}
 	entries := make([]FloatingTagEntry, len(images))
 	for i, img := range images {
-		entries[i] = FloatingTagEntry{
-			AppName:  img.AppName,
-			FilePath: img.FilePath,
-			Image:    img.Image,
-			Ref:      img.Ref,
-		}
+		entries[i] = FloatingTagEntry(img)
 	}
 	return entries, nil
 }

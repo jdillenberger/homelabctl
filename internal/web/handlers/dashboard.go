@@ -25,21 +25,21 @@ type PortalApp struct {
 
 // FleetPeer represents a discovered peer server.
 type FleetPeer struct {
-	Hostname   string
-	Address    string
-	Port       int
-	DashURL    string
-	Apps       []string
+	Hostname string
+	Address  string
+	Port     int
+	DashURL  string
+	Apps     []string
 }
 
 // DashboardData holds data for the dashboard template.
 type DashboardData struct {
-	Hostname     string
-	Domain       string
-	Stats        SystemStats
-	Apps         []PortalApp
-	Peers        []FleetPeer
-	ShowStats    bool
+	Hostname  string
+	Domain    string
+	Stats     SystemStats
+	Apps      []PortalApp
+	Peers     []FleetPeer
+	ShowStats bool
 }
 
 // Dashboard renders the main portal dashboard page.

@@ -72,7 +72,7 @@ func (bc *BeszelClient) RegisterHost(hostname, address string) error {
 func (bc *BeszelClient) UnregisterHost(hostname string) error {
 	unregisterURL := fmt.Sprintf("%s/api/hosts/%s", bc.hubURL, hostname)
 
-	req, err := http.NewRequest(http.MethodDelete, unregisterURL, nil)
+	req, err := http.NewRequest(http.MethodDelete, unregisterURL, http.NoBody)
 	if err != nil {
 		return fmt.Errorf("creating request: %w", err)
 	}

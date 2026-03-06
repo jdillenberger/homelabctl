@@ -27,12 +27,12 @@ func Advertise(cfg *config.Config, version string, apps []string) (shutdown func
 	}
 
 	server, err := zeroconf.Register(
-		hostname,       // instance name
-		serviceType,    // service type
-		"local.",       // domain
-		port,           // port
-		txt,            // TXT records
-		nil,            // interfaces (nil = all)
+		hostname,    // instance name
+		serviceType, // service type
+		"local.",    // domain
+		port,        // port
+		txt,         // TXT records
+		nil,         // interfaces (nil = all)
 	)
 	if err != nil {
 		return nil, fmt.Errorf("registering mDNS service: %w", err)

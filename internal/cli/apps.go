@@ -745,7 +745,6 @@ var appsPinCmd = &cobra.Command{
 
 			status := "found"
 			if update && !dryRun {
-				status = "updated"
 				// Rewriting templates is left for a future enhancement;
 				// for now we report what would change.
 				status = "found (use --update to apply)"

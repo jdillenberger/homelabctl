@@ -30,9 +30,9 @@ func SetVersionInfo(v, c, d string) {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "homelabctl",
-	Short: "Homelab app deployment & management tool",
-	Long:  "homelabctl deploys and manages self-hosted apps on your homelab using Docker Compose.",
+	Use:          "homelabctl",
+	Short:        "Homelab app deployment & management tool",
+	Long:         "homelabctl deploys and manages self-hosted apps on your homelab using Docker Compose.",
 	SilenceUsage: true,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		logging.Setup(verbose, quiet, jsonOutput)

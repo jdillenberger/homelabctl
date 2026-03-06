@@ -29,7 +29,7 @@ func NewCompose(runner *exec.Runner, composeCommand string) *Compose {
 	}
 }
 
-func (c *Compose) cmdParts() (string, []string) {
+func (c *Compose) cmdParts() (bin string, args []string) {
 	parts := strings.Fields(c.command)
 	if len(parts) == 0 {
 		return "docker", []string{"compose"}
@@ -39,7 +39,9 @@ func (c *Compose) cmdParts() (string, []string) {
 
 func (c *Compose) run(projectDir string, timeout time.Duration, args ...string) (*exec.Result, error) {
 	bin, baseArgs := c.cmdParts()
-	fullArgs := append(baseArgs, "-f", projectDir+"/docker-compose.yml")
+	fullArgs := make([]string, 0, len(baseArgs)+len(args)+2)
+	fullArgs = append(fullArgs, baseArgs...)
+	fullArgs = append(fullArgs, "-f", projectDir+"/docker-compose.yml")
 	fullArgs = append(fullArgs, args...)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -79,7 +81,9 @@ func (c *Compose) PS(projectDir string) (*exec.Result, error) {
 // Logs streams logs to the given writer.
 func (c *Compose) Logs(projectDir string, w io.Writer, follow bool, lines int) error {
 	bin, baseArgs := c.cmdParts()
-	fullArgs := append(baseArgs, "-f", projectDir+"/docker-compose.yml", "logs")
+	fullArgs := make([]string, 0, len(baseArgs)+6)
+	fullArgs = append(fullArgs, baseArgs...)
+	fullArgs = append(fullArgs, "-f", projectDir+"/docker-compose.yml", "logs")
 	if follow {
 		fullArgs = append(fullArgs, "-f")
 	}

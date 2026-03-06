@@ -130,9 +130,9 @@ type dirInfo struct {
 	name string
 }
 
-func (di *dirInfo) Name() string      { return di.name }
-func (di *dirInfo) Size() int64       { return 0 }
-func (di *dirInfo) Mode() fs.FileMode { return fs.ModeDir | 0o755 }
+func (di *dirInfo) Name() string       { return di.name }
+func (di *dirInfo) Size() int64        { return 0 }
+func (di *dirInfo) Mode() fs.FileMode  { return fs.ModeDir | 0o755 }
 func (di *dirInfo) ModTime() time.Time { return time.Time{} }
 func (di *dirInfo) IsDir() bool        { return true }
 func (di *dirInfo) Sys() any           { return nil }

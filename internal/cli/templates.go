@@ -301,9 +301,9 @@ TZ={{.timezone}}
 `
 
 		files := map[string]string{
-			"app.yaml":               appYAML,
+			"app.yaml":                appYAML,
 			"docker-compose.yml.tmpl": composeTmpl,
-			".env.tmpl":              envTmpl,
+			".env.tmpl":               envTmpl,
 		}
 
 		for fname, content := range files {

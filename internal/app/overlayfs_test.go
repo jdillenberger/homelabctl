@@ -11,9 +11,9 @@ func newTestOverlay(t *testing.T) *OverlayFS {
 	t.Helper()
 
 	lower := fstest.MapFS{
-		"adguard/app.yaml":                 {Data: []byte("name: adguard\ndescription: built-in adguard\ncategory: infra\n")},
-		"adguard/docker-compose.yml.tmpl":  {Data: []byte("image: adguard-lower")},
-		"nextcloud/app.yaml":               {Data: []byte("name: nextcloud\ndescription: built-in nextcloud\ncategory: productivity\n")},
+		"adguard/app.yaml":                  {Data: []byte("name: adguard\ndescription: built-in adguard\ncategory: infra\n")},
+		"adguard/docker-compose.yml.tmpl":   {Data: []byte("image: adguard-lower")},
+		"nextcloud/app.yaml":                {Data: []byte("name: nextcloud\ndescription: built-in nextcloud\ncategory: productivity\n")},
 		"nextcloud/docker-compose.yml.tmpl": {Data: []byte("image: nextcloud-lower")},
 	}
 
@@ -182,8 +182,8 @@ func TestOverlayFS_NilUpper(t *testing.T) {
 func TestOverlayFS_ThreeLayerChain(t *testing.T) {
 	// Simulate embedded → repos → local chain.
 	embedded := fstest.MapFS{
-		"adguard/app.yaml":                {Data: []byte("name: adguard\ndescription: built-in\ncategory: infra\n")},
-		"nextcloud/app.yaml":              {Data: []byte("name: nextcloud\ndescription: built-in nextcloud\ncategory: productivity\n")},
+		"adguard/app.yaml":                  {Data: []byte("name: adguard\ndescription: built-in\ncategory: infra\n")},
+		"nextcloud/app.yaml":                {Data: []byte("name: nextcloud\ndescription: built-in nextcloud\ncategory: productivity\n")},
 		"nextcloud/docker-compose.yml.tmpl": {Data: []byte("image: nextcloud-embedded")},
 	}
 
@@ -239,8 +239,8 @@ func TestOverlayFS_ThreeLayerChain(t *testing.T) {
 
 func TestResolveSource(t *testing.T) {
 	embedded := fstest.MapFS{
-		"adguard/app.yaml":    {Data: []byte("name: adguard\ncategory: infra\n")},
-		"nextcloud/app.yaml":  {Data: []byte("name: nextcloud\ncategory: productivity\n")},
+		"adguard/app.yaml":   {Data: []byte("name: adguard\ncategory: infra\n")},
+		"nextcloud/app.yaml": {Data: []byte("name: nextcloud\ncategory: productivity\n")},
 	}
 
 	dir1 := t.TempDir()

@@ -9,7 +9,7 @@ import (
 
 // setupMergedDirs creates temporary directories with template subdirectories
 // for testing MergedFS.
-func setupMergedDirs(t *testing.T) (string, string) {
+func setupMergedDirs(t *testing.T) (baseDir, overrideDir string) {
 	t.Helper()
 
 	dir1 := t.TempDir()
@@ -98,9 +98,9 @@ func TestMergedFS_RepoIndex(t *testing.T) {
 		name     string
 		expected int
 	}{
-		{"grafana", 0},     // first layer wins
-		{"prometheus", 0},  // only in first layer
-		{"loki", 1},        // only in second layer
+		{"grafana", 0},    // first layer wins
+		{"prometheus", 0}, // only in first layer
+		{"loki", 1},       // only in second layer
 		{"nonexistent", -1},
 	}
 

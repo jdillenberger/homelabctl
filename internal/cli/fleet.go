@@ -99,4 +99,3 @@ var fleetDiscoverCmd = &cobra.Command{
 		return nil
 	},
 }
-

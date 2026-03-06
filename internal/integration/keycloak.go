@@ -93,14 +93,14 @@ func (kc *KeycloakClient) Authenticate() error {
 
 // keycloakClientRepresentation is the Keycloak client JSON payload.
 type keycloakClientRepresentation struct {
-	ClientID                string   `json:"clientId"`
-	Name                    string   `json:"name"`
-	Enabled                 bool     `json:"enabled"`
-	Protocol                string   `json:"protocol"`
-	PublicClient            bool     `json:"publicClient"`
-	RedirectURIs            []string `json:"redirectUris"`
-	StandardFlowEnabled     bool     `json:"standardFlowEnabled"`
-	DirectAccessGrantsEnabled bool   `json:"directAccessGrantsEnabled"`
+	ClientID                  string   `json:"clientId"`
+	Name                      string   `json:"name"`
+	Enabled                   bool     `json:"enabled"`
+	Protocol                  string   `json:"protocol"`
+	PublicClient              bool     `json:"publicClient"`
+	RedirectURIs              []string `json:"redirectUris"`
+	StandardFlowEnabled       bool     `json:"standardFlowEnabled"`
+	DirectAccessGrantsEnabled bool     `json:"directAccessGrantsEnabled"`
 }
 
 // CreateOIDCClient creates a new OIDC client in the configured realm.
@@ -112,13 +112,13 @@ func (kc *KeycloakClient) CreateOIDCClient(clientID, clientName, redirectURI str
 	clientsURL := fmt.Sprintf("%s/admin/realms/%s/clients", kc.baseURL, url.PathEscape(kc.realm))
 
 	payload := keycloakClientRepresentation{
-		ClientID:                clientID,
-		Name:                    clientName,
-		Enabled:                 true,
-		Protocol:                "openid-connect",
-		PublicClient:            false,
-		RedirectURIs:            []string{redirectURI},
-		StandardFlowEnabled:     true,
+		ClientID:                  clientID,
+		Name:                      clientName,
+		Enabled:                   true,
+		Protocol:                  "openid-connect",
+		PublicClient:              false,
+		RedirectURIs:              []string{redirectURI},
+		StandardFlowEnabled:       true,
 		DirectAccessGrantsEnabled: false,
 	}
 
@@ -162,7 +162,7 @@ func (kc *KeycloakClient) DeleteClient(clientID string) error {
 
 	clientURL := fmt.Sprintf("%s/admin/realms/%s/clients/%s", kc.baseURL, url.PathEscape(kc.realm), uuid)
 
-	req, err := http.NewRequest(http.MethodDelete, clientURL, nil)
+	req, err := http.NewRequest(http.MethodDelete, clientURL, http.NoBody)
 	if err != nil {
 		return fmt.Errorf("creating request: %w", err)
 	}
@@ -201,7 +201,7 @@ func (kc *KeycloakClient) GetClientSecret(clientID string) (string, error) {
 
 	secretURL := fmt.Sprintf("%s/admin/realms/%s/clients/%s/client-secret", kc.baseURL, url.PathEscape(kc.realm), uuid)
 
-	req, err := http.NewRequest(http.MethodGet, secretURL, nil)
+	req, err := http.NewRequest(http.MethodGet, secretURL, http.NoBody)
 	if err != nil {
 		return "", fmt.Errorf("creating request: %w", err)
 	}
@@ -240,7 +240,7 @@ type keycloakClientListEntry struct {
 func (kc *KeycloakClient) getClientUUID(clientID string) (string, error) {
 	listURL := fmt.Sprintf("%s/admin/realms/%s/clients?clientId=%s", kc.baseURL, url.PathEscape(kc.realm), url.QueryEscape(clientID))
 
-	req, err := http.NewRequest(http.MethodGet, listURL, nil)
+	req, err := http.NewRequest(http.MethodGet, listURL, http.NoBody)
 	if err != nil {
 		return "", fmt.Errorf("creating request: %w", err)
 	}

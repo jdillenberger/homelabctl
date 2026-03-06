@@ -46,7 +46,7 @@ func NewHealthChecker() *HealthChecker {
 
 // CheckHTTP performs an HTTP GET health check against the given URL.
 func (hc *HealthChecker) CheckHTTP(ctx context.Context, url string) HealthResult {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return HealthResult{Status: HealthStatusUnhealthy, Detail: err.Error()}
 	}

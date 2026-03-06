@@ -16,10 +16,10 @@ import (
 
 // SystemStats holds system statistics for display.
 type SystemStats struct {
-	CPUPercent float64
-	MemPercent float64
-	MemUsedGB  string
-	MemTotalGB string
+	CPUPercent  float64
+	MemPercent  float64
+	MemUsedGB   string
+	MemTotalGB  string
 	DiskPercent float64
 	DiskUsedGB  string
 	DiskTotalGB string
@@ -80,13 +80,13 @@ func statsJSON() map[string]interface{} {
 	stats := collectStats()
 	hostname, _ := os.Hostname()
 	return map[string]interface{}{
-		"hostname":     hostname,
-		"os":           runtime.GOOS,
-		"arch":         runtime.GOARCH,
-		"cpu_percent":  stats.CPUPercent,
-		"mem_percent":  stats.MemPercent,
-		"mem_used_gb":  stats.MemUsedGB,
-		"mem_total_gb": stats.MemTotalGB,
+		"hostname":      hostname,
+		"os":            runtime.GOOS,
+		"arch":          runtime.GOARCH,
+		"cpu_percent":   stats.CPUPercent,
+		"mem_percent":   stats.MemPercent,
+		"mem_used_gb":   stats.MemUsedGB,
+		"mem_total_gb":  stats.MemTotalGB,
 		"disk_percent":  stats.DiskPercent,
 		"disk_used_gb":  stats.DiskUsedGB,
 		"disk_total_gb": stats.DiskTotalGB,

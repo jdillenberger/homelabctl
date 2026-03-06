@@ -60,8 +60,8 @@ var selfUpdateCmd = &cobra.Command{
 
 		if jsonOutput {
 			return outputJSON(map[string]string{
-				"current_version": current,
-				"latest_version":  latest,
+				"current_version":  current,
+				"latest_version":   latest,
 				"update_available": fmt.Sprintf("%t", current != latest),
 			})
 		}
