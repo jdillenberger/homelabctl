@@ -143,23 +143,95 @@ func (o *OverlayFS) Source(templateName string) string {
 	}
 }
 
-// BuildTemplateFS creates the template filesystem by overlaying the local
-// templates directory on top of the embedded FS. The local directory is
-// created automatically if it does not exist.
-func BuildTemplateFS(embeddedFS fs.FS, localDir string) fs.FS {
+// BuildTemplateFS creates the template filesystem by layering:
+// embedded (lowest) → repos (middle) → local (highest priority).
+// The local directory is created automatically if it does not exist.
+func BuildTemplateFS(embeddedFS fs.FS, repoDirs []string, localDir string) fs.FS {
+	// Start with the embedded FS as the base.
+	var base fs.FS = embeddedFS
+
+	// Layer repo templates on top of embedded, if any.
+	if len(repoDirs) > 0 {
+		merged := NewMergedFS(repoDirs)
+		base = NewOverlayFS(embeddedFS, merged)
+	}
+
 	if localDir == "" {
-		return embeddedFS
+		return base
 	}
 
 	// Auto-create the local templates directory.
 	if err := os.MkdirAll(localDir, 0o755); err != nil {
-		return embeddedFS
+		return base
 	}
 
 	info, err := os.Stat(localDir)
 	if err != nil || !info.IsDir() {
-		return embeddedFS
+		return base
 	}
 
-	return NewOverlayFS(embeddedFS, os.DirFS(localDir))
+	return NewOverlayFS(base, os.DirFS(localDir))
+}
+
+// ResolveSource determines where a template comes from in the three-layer
+// filesystem. repoNames correspond to repoDirs order used in BuildTemplateFS.
+func ResolveSource(fsys fs.FS, templateName string, repoNames []string) string {
+	// Walk through the overlay chain.
+	// The outermost OverlayFS has local as upper, inner as lower.
+	outer, ok := fsys.(*OverlayFS)
+	if !ok {
+		return "built-in"
+	}
+
+	inLocal := outer.upperDirs[templateName]
+
+	// Check the inner layer (could be another OverlayFS with merged repos, or plain embedded).
+	inner := outer.lower
+
+	// Determine if the template is in the inner layer.
+	var inInner bool
+	var repoSource string
+
+	if innerOverlay, ok := inner.(*OverlayFS); ok {
+		// Inner is embedded + merged repos.
+		inRepos := innerOverlay.upperDirs[templateName]
+		inEmbedded := innerOverlay.lowerDirs[templateName]
+
+		if inRepos {
+			// Find which repo owns it.
+			if merged, ok := innerOverlay.upper.(*MergedFS); ok {
+				idx := merged.RepoIndex(templateName)
+				if idx >= 0 && idx < len(repoNames) {
+					repoSource = "repo:" + repoNames[idx]
+				}
+			}
+		}
+
+		inInner = inRepos || inEmbedded
+
+		switch {
+		case inLocal && inInner:
+			return "override"
+		case inLocal:
+			return "local"
+		case inRepos:
+			if repoSource != "" {
+				return repoSource
+			}
+			return "repo"
+		default:
+			return "built-in"
+		}
+	}
+
+	// No repo layer — simple two-layer case.
+	inInner = outer.lowerDirs[templateName]
+	switch {
+	case inLocal && inInner:
+		return "override"
+	case inLocal:
+		return "local"
+	default:
+		return "built-in"
+	}
 }

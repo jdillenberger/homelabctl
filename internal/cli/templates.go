@@ -11,6 +11,8 @@ import (
 
 	"github.com/jdillenberger/homelabctl/internal/app"
 	"github.com/jdillenberger/homelabctl/internal/config"
+	"github.com/jdillenberger/homelabctl/internal/exec"
+	"github.com/jdillenberger/homelabctl/internal/repo"
 	"github.com/jdillenberger/homelabctl/templates"
 )
 
@@ -71,12 +73,17 @@ var templatesListCmd = &cobra.Command{
 			Source      string `json:"source"`
 		}
 
+		cfg, err := config.Load()
+		if err != nil {
+			return err
+		}
+		runner := &exec.Runner{Verbose: verbose}
+		repoMgr := repo.NewManager(cfg.ReposDir(), cfg.ManifestPath(), runner)
+		repoNames, _ := repoMgr.RepoNames()
+
 		var entries []templateEntry
 		for _, meta := range mgr.Registry().All() {
-			source := "built-in"
-			if overlay, ok := mgr.Registry().FS().(*app.OverlayFS); ok {
-				source = overlay.Source(meta.Name)
-			}
+			source := app.ResolveSource(mgr.Registry().FS(), meta.Name, repoNames)
 			entries = append(entries, templateEntry{
 				Name:        meta.Name,
 				Category:    meta.Category,

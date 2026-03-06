@@ -256,6 +256,24 @@ func Validate(c *Config) []string {
 	return errs
 }
 
+// ReposDir returns the directory where template repos are cloned.
+func (c *Config) ReposDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, ".homelabctl", "repos")
+}
+
+// ManifestPath returns the path to the repos manifest file.
+func (c *Config) ManifestPath() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, ".homelabctl", "repos.yaml")
+}
+
 // AppDir returns the directory for a specific deployed app.
 func (c *Config) AppDir(appName string) string {
 	return filepath.Join(c.AppsDir, appName)

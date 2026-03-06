@@ -179,6 +179,144 @@ func TestOverlayFS_NilUpper(t *testing.T) {
 	}
 }
 
+func TestOverlayFS_ThreeLayerChain(t *testing.T) {
+	// Simulate embedded → repos → local chain.
+	embedded := fstest.MapFS{
+		"adguard/app.yaml":                {Data: []byte("name: adguard\ndescription: built-in\ncategory: infra\n")},
+		"nextcloud/app.yaml":              {Data: []byte("name: nextcloud\ndescription: built-in nextcloud\ncategory: productivity\n")},
+		"nextcloud/docker-compose.yml.tmpl": {Data: []byte("image: nextcloud-embedded")},
+	}
+
+	// Create repo dirs on disk.
+	dir1 := t.TempDir()
+	writeTemplate(t, dir1, "grafana", "name: grafana\ndescription: repo grafana\ncategory: monitoring\n")
+	writeTemplate(t, dir1, "adguard", "name: adguard\ndescription: repo adguard\ncategory: infra\n")
+
+	repoDirs := []string{dir1}
+	localDir := t.TempDir()
+	writeTemplate(t, localDir, "myapp", "name: myapp\ndescription: local only\ncategory: custom\n")
+	writeTemplate(t, localDir, "adguard", "name: adguard\ndescription: local adguard\ncategory: infra\n")
+
+	fsys := BuildTemplateFS(embedded, repoDirs, localDir)
+
+	// Should see all templates.
+	entries, err := fs.ReadDir(fsys, ".")
+	if err != nil {
+		t.Fatalf("ReadDir error: %v", err)
+	}
+	var names []string
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	expected := []string{"adguard", "grafana", "myapp", "nextcloud"}
+	if len(names) != len(expected) {
+		t.Fatalf("expected %d entries, got %d: %v", len(expected), len(names), names)
+	}
+	for i, name := range expected {
+		if names[i] != name {
+			t.Errorf("entry %d: expected %q, got %q", i, name, names[i])
+		}
+	}
+
+	// adguard from local (highest priority).
+	data, err := fs.ReadFile(fsys, "adguard/app.yaml")
+	if err != nil {
+		t.Fatalf("ReadFile error: %v", err)
+	}
+	if got := string(data); got != "name: adguard\ndescription: local adguard\ncategory: infra\n" {
+		t.Errorf("expected local adguard, got: %s", got)
+	}
+
+	// nextcloud from embedded (fallthrough).
+	data, err = fs.ReadFile(fsys, "nextcloud/docker-compose.yml.tmpl")
+	if err != nil {
+		t.Fatalf("ReadFile error: %v", err)
+	}
+	if string(data) != "image: nextcloud-embedded" {
+		t.Errorf("expected embedded nextcloud compose, got: %s", string(data))
+	}
+}
+
+func TestResolveSource(t *testing.T) {
+	embedded := fstest.MapFS{
+		"adguard/app.yaml":    {Data: []byte("name: adguard\ncategory: infra\n")},
+		"nextcloud/app.yaml":  {Data: []byte("name: nextcloud\ncategory: productivity\n")},
+	}
+
+	dir1 := t.TempDir()
+	writeTemplate(t, dir1, "grafana", "name: grafana\ncategory: monitoring\n")
+	writeTemplate(t, dir1, "adguard", "name: adguard\ncategory: infra\n")
+
+	localDir := t.TempDir()
+	writeTemplate(t, localDir, "myapp", "name: myapp\ncategory: custom\n")
+	writeTemplate(t, localDir, "adguard", "name: adguard\ncategory: infra\n")
+
+	fsys := BuildTemplateFS(embedded, []string{dir1}, localDir)
+	repoNames := []string{"community"}
+
+	tests := []struct {
+		name     string
+		expected string
+	}{
+		{"nextcloud", "built-in"},
+		{"grafana", "repo:community"},
+		{"myapp", "local"},
+		{"adguard", "override"},
+		{"nonexistent", "built-in"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ResolveSource(fsys, tt.name, repoNames)
+			if got != tt.expected {
+				t.Errorf("ResolveSource(%q) = %q, want %q", tt.name, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestResolveSource_NoRepos(t *testing.T) {
+	embedded := fstest.MapFS{
+		"adguard/app.yaml": {Data: []byte("name: adguard\ncategory: infra\n")},
+	}
+
+	localDir := t.TempDir()
+	writeTemplate(t, localDir, "myapp", "name: myapp\ncategory: custom\n")
+	writeTemplate(t, localDir, "adguard", "name: adguard\ncategory: infra\n")
+
+	fsys := BuildTemplateFS(embedded, nil, localDir)
+
+	tests := []struct {
+		name     string
+		expected string
+	}{
+		{"adguard", "override"},
+		{"myapp", "local"},
+		{"nonexistent", "built-in"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ResolveSource(fsys, tt.name, nil)
+			if got != tt.expected {
+				t.Errorf("ResolveSource(%q) = %q, want %q", tt.name, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestResolveSource_PlainFS(t *testing.T) {
+	embedded := fstest.MapFS{
+		"adguard/app.yaml": {Data: []byte("name: adguard\n")},
+	}
+
+	// When fsys is not an OverlayFS, everything is "built-in".
+	got := ResolveSource(embedded, "adguard", nil)
+	if got != "built-in" {
+		t.Errorf("expected built-in for plain FS, got %q", got)
+	}
+}
+
 func TestOverlayFS_WalkDir(t *testing.T) {
 	o := newTestOverlay(t)
 

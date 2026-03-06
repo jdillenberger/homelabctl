@@ -12,6 +12,7 @@ import (
 	"github.com/jdillenberger/homelabctl/internal/app"
 	"github.com/jdillenberger/homelabctl/internal/config"
 	"github.com/jdillenberger/homelabctl/internal/exec"
+	"github.com/jdillenberger/homelabctl/internal/repo"
 	"github.com/jdillenberger/homelabctl/internal/wizard"
 	"github.com/jdillenberger/homelabctl/templates"
 )
@@ -22,7 +23,9 @@ func newManager() (*app.Manager, error) {
 		return nil, err
 	}
 	runner := &exec.Runner{Verbose: verbose}
-	tmplFS := app.BuildTemplateFS(templates.FS, cfg.TemplatesDir)
+	repoMgr := repo.NewManager(cfg.ReposDir(), cfg.ManifestPath(), runner)
+	repoDirs, _ := repoMgr.TemplateDirs()
+	tmplFS := app.BuildTemplateFS(templates.FS, repoDirs, cfg.TemplatesDir)
 	return app.NewManager(cfg, runner, tmplFS)
 }
 
@@ -693,7 +696,10 @@ var appsPinCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		tmplFS := app.BuildTemplateFS(templates.FS, cfg.TemplatesDir)
+		runner := &exec.Runner{Verbose: verbose}
+		repoMgr := repo.NewManager(cfg.ReposDir(), cfg.ManifestPath(), runner)
+		repoDirs, _ := repoMgr.TemplateDirs()
+		tmplFS := app.BuildTemplateFS(templates.FS, repoDirs, cfg.TemplatesDir)
 
 		entries, err := app.ScanFloatingTags(tmplFS)
 		if err != nil {
