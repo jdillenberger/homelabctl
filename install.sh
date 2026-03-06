@@ -61,7 +61,7 @@ else
 fi
 chmod +x "${INSTALL_DIR}/${BINARY}"
 
-VERSION=$("${INSTALL_DIR}/${BINARY}" --version 2>/dev/null || echo "unknown")
+VERSION=$("${INSTALL_DIR}/${BINARY}" version 2>/dev/null || echo "unknown")
 echo ""
 echo "homelabctl installed successfully!"
 echo "  Version:  ${VERSION}"
