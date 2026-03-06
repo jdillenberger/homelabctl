@@ -15,12 +15,12 @@ import (
 
 // Stats holds system resource statistics.
 type Stats struct {
-	Timestamp   time.Time    `json:"timestamp"`
-	CPU         CPUStats     `json:"cpu"`
-	Memory      MemoryStats  `json:"memory"`
-	Disk        DiskStats    `json:"disk"`
-	Temperature []TempStats  `json:"temperature,omitempty"`
-	Uptime      uint64       `json:"uptime_seconds"`
+	Timestamp   time.Time   `json:"timestamp"`
+	CPU         CPUStats    `json:"cpu"`
+	Memory      MemoryStats `json:"memory"`
+	Disk        DiskStats   `json:"disk"`
+	Temperature []TempStats `json:"temperature,omitempty"`
+	Uptime      uint64      `json:"uptime_seconds"`
 }
 
 // CPUStats holds CPU usage information.

@@ -103,7 +103,7 @@ var versionCmd = &cobra.Command{
 	Short: "Print version information",
 	Run: func(cmd *cobra.Command, args []string) {
 		if jsonOutput {
-			outputJSON(map[string]string{
+			_ = outputJSON(map[string]string{
 				"version": version,
 				"commit":  commit,
 				"date":    buildDate,

@@ -128,12 +128,6 @@ func genPassword() (string, error) {
 	return genRandomHex(16)
 }
 
-// genLongSecret generates a 128-character hex secret (64 random bytes),
-// suitable for Rails secret_key_base and similar high-entropy secrets.
-func genLongSecret() (string, error) {
-	return genRandomHex(64)
-}
-
 func genRandomHex(nBytes int) (string, error) {
 	b := make([]byte, nBytes)
 	if _, err := rand.Read(b); err != nil {

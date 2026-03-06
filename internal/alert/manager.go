@@ -67,8 +67,7 @@ func (m *Manager) evaluateRule(rule Rule, healthResults []app.HealthResult) {
 	var fired bool
 	var message, detail string
 
-	switch rule.Type {
-	case RuleTypeAppDown:
+	if rule.Type == RuleTypeAppDown {
 		for _, hr := range healthResults {
 			if rule.App != "" && hr.App != rule.App {
 				continue
@@ -124,7 +123,7 @@ func (m *Manager) NotifyBackupFailed(appName string, err error) {
 		Detail:    err.Error(),
 		Timestamp: time.Now(),
 	}
-	m.dispatchAll(a)
+	_ = m.dispatchAll(a)
 }
 
 // NotifyUpdateFailed sends an update failure alert.
@@ -137,7 +136,7 @@ func (m *Manager) NotifyUpdateFailed(appName string, err error) {
 		Detail:    err.Error(),
 		Timestamp: time.Now(),
 	}
-	m.dispatchAll(a)
+	_ = m.dispatchAll(a)
 }
 
 // SendTest sends a test alert to all configured notifiers.

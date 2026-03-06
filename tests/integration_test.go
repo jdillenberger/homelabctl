@@ -32,7 +32,7 @@ func TestIntegrationAppLifecycle(t *testing.T) {
 	dataDir := filepath.Join(tmpDir, "data")
 	configFile := filepath.Join(tmpDir, "config.yaml")
 
-	os.WriteFile(configFile, []byte(
+	_ = os.WriteFile(configFile, []byte(
 		"hostname: test-host\n"+
 			"apps_dir: "+appsDir+"\n"+
 			"data_dir: "+dataDir+"\n"+
@@ -73,7 +73,7 @@ func TestIntegrationAppLifecycle(t *testing.T) {
 	// Cleanup on failure
 	t.Cleanup(func() {
 		run("apps", "remove", appName)
-		exec.Command("docker", "network", "rm", "homelabctl-test-net").Run()
+		_ = exec.Command("docker", "network", "rm", "homelabctl-test-net").Run()
 	})
 
 	// Deploy (pass default values to avoid interactive wizard)

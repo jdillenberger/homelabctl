@@ -100,7 +100,7 @@ func (m *Manager) acquireLock(appName string) (*os.File, error) {
 
 // releaseLock releases the file lock and removes the lock file.
 func (m *Manager) releaseLock(f *os.File) {
-	syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+	_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
 	name := f.Name()
 	f.Close()
 	os.Remove(name)
@@ -261,7 +261,7 @@ func (m *Manager) Deploy(appName string, opts DeployOptions) error {
 	fmt.Printf("Starting %s...\n", appName)
 	if _, err := m.compose.Up(appDir); err != nil {
 		// Clean up on failure so the user can retry without needing to remove first.
-		m.compose.Down(appDir)
+		_, _ = m.compose.Down(appDir)
 		os.RemoveAll(appDir)
 		return fmt.Errorf("starting containers: %w", err)
 	}
