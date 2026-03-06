@@ -10,8 +10,8 @@ services:
       - SEARXNG_SECRET={{index . "secret_key"}}
       - TZ={{index . "timezone"}}
     volumes:
-      - {{index . "data_dir"}}/config:/etc/searxng:rw
-      - {{index . "data_dir"}}/cache:/var/cache/searxng:rw
+      - ./config:/etc/searxng
+      - {{index . "data_dir"}}/cache:/var/cache/searxng
     depends_on:
       searxng-valkey:
         condition: service_healthy
@@ -21,7 +21,7 @@ services:
           memory: 512M
           pids: 200
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://localhost:8080/healthz || exit 1"]
+      test: ["CMD-SHELL", "wget --spider -q --proxy=off http://localhost:8080/healthz || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
