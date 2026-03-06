@@ -24,6 +24,8 @@ type AppMeta struct {
 	Requirements   *Requirements   `yaml:"requirements"`
 	PostDeployInfo *PostDeployInfo `yaml:"post_deploy_info"`
 	Hooks          *HooksMeta      `yaml:"hooks"`
+	RequiresBuild  bool            `yaml:"requires_build"`
+	LintIgnore     []string        `yaml:"lint_ignore"`
 }
 
 type PortMapping struct {

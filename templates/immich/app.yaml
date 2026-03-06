@@ -49,3 +49,5 @@ requirements:
   min_ram: 2G
   min_disk: 20G
   arch: [amd64, arm64]
+lint_ignore:
+  - floating-image-tag  # immich uses rolling "release" channel

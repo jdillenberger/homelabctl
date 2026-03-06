@@ -46,9 +46,10 @@ func Discover(timeout time.Duration) ([]config.FleetHost, error) {
 		return nil, fmt.Errorf("browsing mDNS services: %w", err)
 	}
 
-	// Wait for browsing to complete
+	// Wait for browsing to complete.
+	// The zeroconf resolver closes the entries channel when the context
+	// expires, so we must NOT close it ourselves (double-close panics).
 	<-ctx.Done()
-	close(entries)
 	<-done
 
 	return hosts, nil

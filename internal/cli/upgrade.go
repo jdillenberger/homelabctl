@@ -269,7 +269,14 @@ func runUpgrade(cfg *config.Config, mgr *app.Manager, appName string, dryRun, no
 	runner := &exec.Runner{Verbose: verbose}
 	compose := app.NewCompose(runner, cfg.Docker.ComposeCommand)
 	fmt.Printf("Recreating containers for %s...\n", appName)
-	if _, err := compose.Up(appDir); err != nil {
+	var composeUpErr error
+	if meta != nil && meta.RequiresBuild {
+		_, composeUpErr = compose.UpWithBuild(appDir)
+	} else {
+		_, composeUpErr = compose.Up(appDir)
+	}
+	if composeUpErr != nil {
+		err = composeUpErr
 		fmt.Printf("Container recreation failed, rolling back compose file...\n")
 		if rollbackErr := os.WriteFile(composePath, origCompose, 0o600); rollbackErr != nil {
 			return fmt.Errorf("recreating containers: %w (additionally, rollback failed: %v)", err, rollbackErr)

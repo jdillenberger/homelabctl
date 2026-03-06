@@ -40,3 +40,5 @@ backup:
 requirements:
   min_ram: 512M
   arch: [amd64, arm64]
+lint_ignore:
+  - floating-image-tag  # searxng uses date-based tags only

@@ -46,3 +46,6 @@ backup:
 requirements:
   min_ram: 2G
   arch: [amd64, arm64]
+lint_ignore:
+  - floating-image-tag    # no semver releases available
+  - missing-healthcheck   # cli is an interactive TTY container

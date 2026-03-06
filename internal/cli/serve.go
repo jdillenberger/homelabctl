@@ -218,20 +218,32 @@ var serveCmd = &cobra.Command{
 					slog.Error("Auto-update: failed to list deployed apps", "error", err)
 					return
 				}
+				registry := mgr.Registry()
 				for _, appName := range deployed {
 					appDir := cfg.AppDir(appName)
-					slog.Info("Auto-update: pulling images", "app", appName)
-					if _, err := compose.Pull(appDir); err != nil {
-						slog.Error("Auto-update: pull failed", "app", appName, "error", err)
-						if alertMgr != nil {
-							alertMgr.NotifyUpdateFailed(appName, err)
+					meta, _ := registry.Get(appName)
+					if meta != nil && meta.RequiresBuild {
+						slog.Info("Auto-update: building", "app", appName)
+						if _, err := compose.UpWithBuild(appDir); err != nil {
+							slog.Error("Auto-update: build/up failed", "app", appName, "error", err)
+							if alertMgr != nil {
+								alertMgr.NotifyUpdateFailed(appName, err)
+							}
 						}
-						continue
-					}
-					if _, err := compose.Up(appDir); err != nil {
-						slog.Error("Auto-update: up failed", "app", appName, "error", err)
-						if alertMgr != nil {
-							alertMgr.NotifyUpdateFailed(appName, err)
+					} else {
+						slog.Info("Auto-update: pulling images", "app", appName)
+						if _, err := compose.Pull(appDir); err != nil {
+							slog.Error("Auto-update: pull failed", "app", appName, "error", err)
+							if alertMgr != nil {
+								alertMgr.NotifyUpdateFailed(appName, err)
+							}
+							continue
+						}
+						if _, err := compose.Up(appDir); err != nil {
+							slog.Error("Auto-update: up failed", "app", appName, "error", err)
+							if alertMgr != nil {
+								alertMgr.NotifyUpdateFailed(appName, err)
+							}
 						}
 					}
 				}

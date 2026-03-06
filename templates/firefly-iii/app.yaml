@@ -45,3 +45,5 @@ requirements:
   min_ram: 512M
   min_disk: 2G
   arch: [amd64, arm64]
+lint_ignore:
+  - secret-no-autogen:app_key  # requires specific Laravel base64 format

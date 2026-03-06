@@ -259,11 +259,17 @@ func (m *Manager) Deploy(appName string, opts DeployOptions) error {
 
 	// Run docker compose up
 	fmt.Printf("Starting %s...\n", appName)
-	if _, err := m.compose.Up(appDir); err != nil {
+	var composeErr error
+	if meta.RequiresBuild {
+		_, composeErr = m.compose.UpWithBuild(appDir)
+	} else {
+		_, composeErr = m.compose.Up(appDir)
+	}
+	if composeErr != nil {
 		// Clean up on failure so the user can retry without needing to remove first.
 		_, _ = m.compose.Down(appDir)
 		os.RemoveAll(appDir)
-		return fmt.Errorf("starting containers: %w", err)
+		return fmt.Errorf("starting containers: %w", composeErr)
 	}
 
 	// Print access information

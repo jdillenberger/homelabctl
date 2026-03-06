@@ -582,13 +582,21 @@ var appsUpdateCmd = &cobra.Command{
 			for _, appName := range deployed {
 				appDir := cfg.AppDir(appName)
 				fmt.Printf("Updating %s...\n", appName)
-				if _, err := compose.Pull(appDir); err != nil {
-					fmt.Printf("  Pull failed for %s: %v\n", appName, err)
-					continue
-				}
-				if _, err := compose.Up(appDir); err != nil {
-					fmt.Printf("  Recreate failed for %s: %v\n", appName, err)
-					continue
+				meta, _ := mgr.Registry().Get(appName)
+				if meta != nil && meta.RequiresBuild {
+					if _, err := compose.UpWithBuild(appDir); err != nil {
+						fmt.Printf("  Build/recreate failed for %s: %v\n", appName, err)
+						continue
+					}
+				} else {
+					if _, err := compose.Pull(appDir); err != nil {
+						fmt.Printf("  Pull failed for %s: %v\n", appName, err)
+						continue
+					}
+					if _, err := compose.Up(appDir); err != nil {
+						fmt.Printf("  Recreate failed for %s: %v\n", appName, err)
+						continue
+					}
 				}
 				fmt.Printf("  %s updated.\n", appName)
 			}
@@ -599,16 +607,31 @@ var appsUpdateCmd = &cobra.Command{
 			return fmt.Errorf("app name required (or use --all)")
 		}
 
-		appDir := cfg.AppDir(args[0])
-		fmt.Printf("Pulling latest images for %s...\n", args[0])
-		if _, err := compose.Pull(appDir); err != nil {
-			return err
+		appName := args[0]
+		appDir := cfg.AppDir(appName)
+		mgr, mgrErr := newManager()
+		var isBuild bool
+		if mgrErr == nil {
+			if meta, ok := mgr.Registry().Get(appName); ok {
+				isBuild = meta.RequiresBuild
+			}
 		}
-		fmt.Printf("Recreating containers for %s...\n", args[0])
-		if _, err := compose.Up(appDir); err != nil {
-			return err
+		if isBuild {
+			fmt.Printf("Building and recreating containers for %s...\n", appName)
+			if _, err := compose.UpWithBuild(appDir); err != nil {
+				return err
+			}
+		} else {
+			fmt.Printf("Pulling latest images for %s...\n", appName)
+			if _, err := compose.Pull(appDir); err != nil {
+				return err
+			}
+			fmt.Printf("Recreating containers for %s...\n", appName)
+			if _, err := compose.Up(appDir); err != nil {
+				return err
+			}
 		}
-		fmt.Printf("App %s updated.\n", args[0])
+		fmt.Printf("App %s updated.\n", appName)
 		return nil
 	},
 }

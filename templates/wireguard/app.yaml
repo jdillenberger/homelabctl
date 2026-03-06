@@ -45,3 +45,5 @@ backup:
 requirements:
   min_ram: 256M
   arch: [amd64, arm64]
+lint_ignore:
+  - secret-no-autogen:password_hash  # user must provide a bcrypt hash

@@ -93,6 +93,16 @@ func (c *Compose) Logs(projectDir string, w io.Writer, follow bool, lines int) e
 	return c.runner.RunStream(w, bin, fullArgs...)
 }
 
+// Build runs docker compose build.
+func (c *Compose) Build(projectDir string) (*exec.Result, error) {
+	return c.run(projectDir, composeLongTimeout, "build")
+}
+
+// UpWithBuild runs docker compose up -d --build.
+func (c *Compose) UpWithBuild(projectDir string) (*exec.Result, error) {
+	return c.run(projectDir, composeLongTimeout, "up", "-d", "--build", "--remove-orphans")
+}
+
 // Pull pulls the latest images.
 func (c *Compose) Pull(projectDir string) (*exec.Result, error) {
 	return c.run(projectDir, composeLongTimeout, "pull")

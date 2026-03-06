@@ -1,12 +1,17 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
+	"text/template"
 	"time"
 )
 
@@ -39,6 +44,10 @@ func NewHealthChecker() *HealthChecker {
 			Timeout: 5 * time.Second,
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // health checks target localhost with self-signed certs
+			},
+			// Don't follow redirects; a redirect already proves the server is up.
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
 			},
 		},
 	}
@@ -115,7 +124,8 @@ func (hc *HealthChecker) CheckApp(meta *AppMeta, compose *Compose, appDir string
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 
-		r := hc.CheckHTTP(ctx, meta.HealthCheck.URL)
+		url := resolveHealthURL(meta.HealthCheck.URL, appDir)
+		r := hc.CheckHTTP(ctx, url)
 		r.App = meta.Name
 		return r
 	}
@@ -129,4 +139,33 @@ func (hc *HealthChecker) CheckApp(meta *AppMeta, compose *Compose, appDir string
 		return result
 	}
 	return r
+}
+
+// resolveHealthURL renders Go template placeholders in a health check URL
+// using the deployed app's values from .homelabctl.json.
+func resolveHealthURL(rawURL, appDir string) string {
+	if !strings.Contains(rawURL, "{{") {
+		return rawURL
+	}
+
+	data, err := os.ReadFile(filepath.Join(appDir, ".homelabctl.json"))
+	if err != nil {
+		return rawURL
+	}
+	var info struct {
+		Values map[string]string `json:"values"`
+	}
+	if err := json.Unmarshal(data, &info); err != nil || info.Values == nil {
+		return rawURL
+	}
+
+	tmpl, err := template.New("url").Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, info.Values); err != nil {
+		return rawURL
+	}
+	return buf.String()
 }
