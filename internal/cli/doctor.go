@@ -31,7 +31,13 @@ var doctorCmd = &cobra.Command{
 			if r.Installed {
 				fmt.Printf("  [x] %-20s %s\n", r.Name, r.Version)
 			} else {
+				if r.Version != "" {
+				fmt.Printf("  [ ] %-20s %s\n", r.Name, r.Version)
+			} else if r.InstallCommand != "" {
 				fmt.Printf("  [ ] %-20s missing (install: %s)\n", r.Name, r.InstallCommand)
+			} else {
+				fmt.Printf("  [ ] %-20s missing (run --fix to configure)\n", r.Name)
+			}
 				allOK = false
 			}
 		}

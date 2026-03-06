@@ -8,28 +8,45 @@ func TestCheckAll(t *testing.T) {
 	results := CheckAll()
 	deps := DefaultDependencies()
 
-	t.Run("returns result for each dependency", func(t *testing.T) {
-		if len(results) != len(deps) {
-			t.Errorf("CheckAll() returned %d results, expected %d", len(results), len(deps))
+	// CheckAll returns dependency checks + system checks (nsswitch-mdns, avahi-daemon-running)
+	expectedCount := len(deps) + 2
+
+	t.Run("returns result for each check", func(t *testing.T) {
+		if len(results) != expectedCount {
+			t.Errorf("CheckAll() returned %d results, expected %d", len(results), expectedCount)
 		}
 	})
 
-	t.Run("each result has name and install command", func(t *testing.T) {
+	t.Run("each result has a name", func(t *testing.T) {
 		for i, r := range results {
 			if r.Name == "" {
 				t.Errorf("result[%d] has empty Name", i)
 			}
-			if r.InstallCommand == "" {
-				t.Errorf("result[%d] (%s) has empty InstallCommand", i, r.Name)
+		}
+	})
+
+	t.Run("dependency results match order", func(t *testing.T) {
+		for i, dep := range deps {
+			if i >= len(results) {
+				break
+			}
+			if results[i].Name != dep.Name {
+				t.Errorf("result[%d].Name = %q, expected %q", i, results[i].Name, dep.Name)
 			}
 		}
 	})
 
-	t.Run("results match dependency order", func(t *testing.T) {
-		for i, r := range results {
-			if r.Name != deps[i].Name {
-				t.Errorf("result[%d].Name = %q, expected %q", i, r.Name, deps[i].Name)
-			}
+	t.Run("system checks are appended", func(t *testing.T) {
+		if len(results) < 2 {
+			t.Fatal("not enough results for system checks")
+		}
+		nssIdx := len(deps)
+		avahiIdx := len(deps) + 1
+		if results[nssIdx].Name != "nsswitch-mdns" {
+			t.Errorf("expected nsswitch-mdns at index %d, got %q", nssIdx, results[nssIdx].Name)
+		}
+		if results[avahiIdx].Name != "avahi-daemon-running" {
+			t.Errorf("expected avahi-daemon-running at index %d, got %q", avahiIdx, results[avahiIdx].Name)
 		}
 	})
 }

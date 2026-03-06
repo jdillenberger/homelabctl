@@ -1,0 +1,62 @@
+name: traefik
+description: Cloud-native reverse proxy and load balancer
+category: infra
+version: "3.6"
+ports:
+  - host: 80
+    container: 80
+    protocol: tcp
+    description: HTTP
+    value_name: http_port
+  - host: 443
+    container: 443
+    protocol: tcp
+    description: HTTPS
+    value_name: https_port
+  - host: 8081
+    container: 8080
+    protocol: tcp
+    description: Dashboard
+    value_name: dashboard_port
+values:
+  - name: http_port
+    description: HTTP entrypoint port
+    default: "80"
+  - name: https_port
+    description: HTTPS entrypoint port
+    default: "443"
+  - name: dashboard_port
+    description: Dashboard port
+    default: "8081"
+  - name: dashboard_enabled
+    description: Enable the Traefik dashboard
+    default: "true"
+  - name: https_enabled
+    description: Enable HTTPS with local certificates
+    default: "false"
+  - name: acme_email
+    description: Email for Let's Encrypt certificates (external domains)
+    default: ""
+  - name: certs_dir
+    description: Path to local certificate directory
+    default: ""
+  - name: log_level
+    description: Log level (DEBUG, INFO, WARN, ERROR)
+    default: "INFO"
+  - name: timezone
+    description: Timezone
+    default: "UTC"
+dependencies:
+  - docker
+volumes:
+  - name: letsencrypt
+    container: /letsencrypt
+    description: Let's Encrypt certificate storage
+health_check:
+  url: "http://localhost:{{.dashboard_port}}/ping"
+  interval: 30s
+ingress:
+  enabled: false
+requirements:
+  min_ram: 64M
+  arch: [amd64, arm64]

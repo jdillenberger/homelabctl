@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -71,6 +72,46 @@ var serveCmd = &cobra.Command{
 				slog.Warn("mDNS advertising failed", "error", err)
 			} else {
 				defer shutdownMDNS()
+			}
+
+			// Advertise app ingress domains via Avahi CNAME
+			if cfg.MDNS.AdvertiseApps {
+				avahiMgr := mdns.NewAvahiCNAME(runner)
+				for _, appName := range deployedApps {
+					info, err := mgr.GetDeployedInfo(appName)
+					if err != nil || info.Ingress == nil || !info.Ingress.Enabled {
+						continue
+					}
+					for _, domain := range info.Ingress.Domains {
+						if strings.HasSuffix(domain, ".local") {
+							if err := avahiMgr.PublishCNAME(appName+":"+domain, domain); err != nil {
+								slog.Warn("Failed to publish CNAME", "domain", domain, "error", err)
+							}
+						}
+					}
+				}
+				defer avahiMgr.Shutdown()
+
+				// Wire Manager callbacks for dynamic CNAME management
+				mgr.OnDeploy = func(appName string, ingress *app.DeployedIngress) {
+					if ingress == nil || !ingress.Enabled {
+						return
+					}
+					for _, d := range ingress.Domains {
+						if strings.HasSuffix(d, ".local") {
+							if err := avahiMgr.PublishCNAME(appName+":"+d, d); err != nil {
+								slog.Warn("Failed to publish CNAME", "domain", d, "error", err)
+							}
+						}
+					}
+				}
+				mgr.OnRemove = func(appName string) {
+					for key := range avahiMgr.ListPublished() {
+						if strings.HasPrefix(key, appName+":") {
+							_ = avahiMgr.UnpublishCNAME(key)
+						}
+					}
+				}
 			}
 		}
 

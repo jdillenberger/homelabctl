@@ -33,7 +33,21 @@ type Config struct {
 	Updates UpdatesConfig `mapstructure:"updates" yaml:"updates"`
 	Prune   PruneConfig   `mapstructure:"prune" yaml:"prune"`
 
+	Ingress IngressConfig `mapstructure:"ingress" yaml:"ingress"`
+
 	Integrations IntegrationsConfig `mapstructure:"integrations" yaml:"integrations"`
+}
+
+type IngressConfig struct {
+	Enabled  bool        `mapstructure:"enabled" yaml:"enabled"`
+	Provider string      `mapstructure:"provider" yaml:"provider"`
+	Domain   string      `mapstructure:"domain" yaml:"domain"`
+	HTTPS    HTTPSConfig `mapstructure:"https" yaml:"https"`
+}
+
+type HTTPSConfig struct {
+	Enabled   bool   `mapstructure:"enabled" yaml:"enabled"`
+	AcmeEmail string `mapstructure:"acme_email" yaml:"acme_email"`
 }
 
 type NetworkConfig struct {
@@ -173,6 +187,14 @@ func DefaultConfig() *Config {
 			Enabled:  false,
 			Schedule: "0 5 * * 0",
 		},
+		Ingress: IngressConfig{
+			Enabled:  false,
+			Provider: "traefik",
+			Domain:   "",
+			HTTPS: HTTPSConfig{
+				Enabled: false,
+			},
+		},
 	}
 }
 
@@ -206,6 +228,11 @@ func SetDefaults() {
 	viper.SetDefault("updates.schedule", d.Updates.Schedule)
 	viper.SetDefault("prune.enabled", d.Prune.Enabled)
 	viper.SetDefault("prune.schedule", d.Prune.Schedule)
+	viper.SetDefault("ingress.enabled", d.Ingress.Enabled)
+	viper.SetDefault("ingress.provider", d.Ingress.Provider)
+	viper.SetDefault("ingress.domain", d.Ingress.Domain)
+	viper.SetDefault("ingress.https.enabled", d.Ingress.HTTPS.Enabled)
+	viper.SetDefault("ingress.https.acme_email", d.Ingress.HTTPS.AcmeEmail)
 }
 
 // Load reads the global config from viper into a Config struct.
@@ -258,6 +285,11 @@ func Validate(c *Config) []string {
 	if c.Backup.Enabled && c.Backup.BorgRepo == "" {
 		errs = append(errs, "backup.borg_repo is empty but backup is enabled")
 	}
+	if c.Ingress.Enabled {
+		if c.Ingress.Provider != "traefik" {
+			errs = append(errs, "ingress.provider must be \"traefik\"")
+		}
+	}
 
 	return errs
 }
@@ -278,6 +310,14 @@ func (c *Config) ManifestPath() string {
 		return ""
 	}
 	return filepath.Join(home, ".homelabctl", "repos.yaml")
+}
+
+// IngressDomain returns the effective ingress domain, falling back to network.domain.
+func (c *Config) IngressDomain() string {
+	if c.Ingress.Domain != "" {
+		return c.Ingress.Domain
+	}
+	return c.Hostname + "." + c.Network.Domain
 }
 
 // AppDir returns the directory for a specific deployed app.

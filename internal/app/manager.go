@@ -20,6 +20,14 @@ import (
 	"github.com/jdillenberger/homelabctl/internal/exec"
 )
 
+// DeployedIngress holds per-app ingress state.
+type DeployedIngress struct {
+	Enabled       bool     `json:"enabled"`
+	Domains       []string `json:"domains"`
+	ContainerPort int      `json:"container_port"`
+	KeepPorts     bool     `json:"keep_ports"`
+}
+
 // DeployedApp holds information about a deployed app instance.
 type DeployedApp struct {
 	Name       string            `json:"name"`
@@ -27,6 +35,7 @@ type DeployedApp struct {
 	Values     map[string]string `json:"values"`
 	DeployedAt time.Time         `json:"deployed_at"`
 	Version    string            `json:"version"`
+	Ingress    *DeployedIngress  `json:"ingress,omitempty"`
 }
 
 // DeployOptions holds parameters for a deploy operation.
@@ -43,6 +52,9 @@ type Manager struct {
 	renderer *TemplateRenderer
 	compose  *Compose
 	runner   *exec.Runner
+
+	OnDeploy func(appName string, ingress *DeployedIngress)
+	OnRemove func(appName string)
 }
 
 // NewManager creates a new app manager.
@@ -174,10 +186,54 @@ func (m *Manager) Deploy(appName string, opts DeployOptions) error {
 	mergedValues["app_name"] = appName
 	mergedValues["network"] = m.cfg.Docker.DefaultNetwork
 
+	// Auto-populate HTTPS values for traefik
+	if appName == "traefik" && m.cfg.Ingress.HTTPS.Enabled {
+		mergedValues["https_enabled"] = "true"
+		mergedValues["acme_email"] = m.cfg.Ingress.HTTPS.AcmeEmail
+		mergedValues["certs_dir"] = filepath.Join(m.cfg.DataPath("traefik"), "certs")
+	}
+
+	// Generate local certificates for traefik
+	if appName == "traefik" && m.cfg.Ingress.HTTPS.Enabled {
+		cm := NewCertManager(m.cfg.DataPath("traefik"))
+		if err := cm.EnsureCerts(m.cfg.IngressDomain()); err != nil {
+			return fmt.Errorf("generating local certificates: %w", err)
+		}
+		slog.Info("Local certificates generated", "ca_cert", cm.CACertPath())
+	}
+
 	// Render templates
 	rendered, err := m.renderer.RenderAllFiles(appName, mergedValues)
 	if err != nil {
 		return fmt.Errorf("rendering templates: %w", err)
+	}
+
+	// Compute and inject ingress labels
+	var deployedIngress *DeployedIngress
+	if m.cfg.Ingress.Enabled && m.cfg.Ingress.Provider == "traefik" {
+		deployedIngress = computeIngress(m.cfg, appName, meta)
+
+		if deployedIngress.Enabled {
+			labeler := NewIngressLabeler(m.cfg)
+			if compose, ok := rendered["docker-compose.yml"]; ok {
+				modified, err := labeler.InjectLabels(compose, appName, deployedIngress)
+				if err != nil {
+					slog.Warn("Failed to inject ingress labels", "app", appName, "error", err)
+				} else {
+					rendered["docker-compose.yml"] = modified
+				}
+			}
+
+			// Add ingress values for use in templates/post-deploy info
+			if len(deployedIngress.Domains) > 0 {
+				scheme := "http"
+				if m.cfg.Ingress.HTTPS.Enabled {
+					scheme = "https"
+				}
+				mergedValues["ingress_domain"] = deployedIngress.Domains[0]
+				mergedValues["ingress_url"] = fmt.Sprintf("%s://%s", scheme, deployedIngress.Domains[0])
+			}
+		}
 	}
 
 	// Get static files
@@ -248,6 +304,7 @@ func (m *Manager) Deploy(appName string, opts DeployOptions) error {
 		Values:     mergedValues,
 		DeployedAt: time.Now(),
 		Version:    meta.Version,
+		Ingress:    deployedIngress,
 	}
 	infoData, err := json.MarshalIndent(deployed, "", "  ")
 	if err != nil {
@@ -292,6 +349,18 @@ func (m *Manager) Deploy(appName string, opts DeployOptions) error {
 		}
 	}
 	fmt.Printf("  %-20s %s\n", "Data:", m.cfg.DataPath(appName))
+
+	// Show ingress URLs
+	if deployed.Ingress != nil && deployed.Ingress.Enabled && len(deployed.Ingress.Domains) > 0 {
+		scheme := "http"
+		if m.cfg.Ingress.HTTPS.Enabled {
+			scheme = "https"
+		}
+		for _, d := range deployed.Ingress.Domains {
+			fmt.Printf("  %-20s %s://%s\n", "Ingress:", scheme, d)
+		}
+	}
+
 	fmt.Println()
 
 	// Show post-deploy info if available
@@ -302,6 +371,11 @@ func (m *Manager) Deploy(appName string, opts DeployOptions) error {
 	// Execute post-deploy hooks
 	if meta.Hooks != nil {
 		executeHooks(meta.Hooks.PostDeploy, mergedValues, m.runner)
+	}
+
+	// Invoke deploy callback (e.g. for Avahi CNAME publishing)
+	if m.OnDeploy != nil {
+		m.OnDeploy(appName, deployed.Ingress)
 	}
 
 	return nil
@@ -393,6 +467,11 @@ func (m *Manager) Remove(appName string, keepData bool) error {
 	// Remove app directory
 	if err := os.RemoveAll(appDir); err != nil {
 		return fmt.Errorf("removing app directory: %w", err)
+	}
+
+	// Invoke remove callback (e.g. for Avahi CNAME unpublishing)
+	if m.OnRemove != nil {
+		m.OnRemove(appName)
 	}
 
 	if !keepData {

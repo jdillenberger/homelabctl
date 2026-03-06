@@ -151,6 +151,30 @@ func TestValidate(t *testing.T) {
 			t.Error("expected validation error for empty borg_repo with backup enabled")
 		}
 	})
+
+	t.Run("ingress https enabled without acme_email is valid", func(t *testing.T) {
+		cfg := DefaultConfig()
+		cfg.Ingress.Enabled = true
+		cfg.Ingress.Provider = "traefik"
+		cfg.Ingress.HTTPS.Enabled = true
+		cfg.Ingress.HTTPS.AcmeEmail = ""
+		errs := Validate(cfg)
+		if len(errs) > 0 {
+			t.Errorf("HTTPS without ACME email should be valid (local CA only), got: %v", errs)
+		}
+	})
+
+	t.Run("ingress https enabled with acme_email is valid", func(t *testing.T) {
+		cfg := DefaultConfig()
+		cfg.Ingress.Enabled = true
+		cfg.Ingress.Provider = "traefik"
+		cfg.Ingress.HTTPS.Enabled = true
+		cfg.Ingress.HTTPS.AcmeEmail = "user@example.com"
+		errs := Validate(cfg)
+		if len(errs) > 0 {
+			t.Errorf("HTTPS with ACME email should be valid, got: %v", errs)
+		}
+	})
 }
 
 func TestAppDir(t *testing.T) {

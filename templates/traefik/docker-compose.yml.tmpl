@@ -1,0 +1,60 @@
+services:
+  traefik:
+    image: traefik:v3.6
+    container_name: traefik
+    restart: unless-stopped
+    ports:
+      - "{{index . "http_port"}}:80"
+      - "{{index . "https_port"}}:443"
+      - "{{index . "dashboard_port"}}:8080"
+    environment:
+      - TZ={{index . "timezone"}}
+      - DOCKER_API_VERSION=1.44
+    command:
+      - "--api.dashboard={{index . "dashboard_enabled"}}"
+      - "--api.insecure=true"
+      - "--ping=true"
+      - "--log.level={{index . "log_level"}}"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network={{index . "network"}}"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+{{- if eq (index . "https_enabled") "true"}}
+      - "--providers.file.directory=/certs/dynamic"
+{{- end}}
+{{- if ne (index . "acme_email") ""}}
+      - "--certificatesresolvers.letsencrypt.acme.email={{index . "acme_email"}}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+{{- end}}
+    healthcheck:
+      test: ["CMD-SHELL", "traefik healthcheck --ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          pids: 200
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - {{index . "data_dir"}}/letsencrypt:/letsencrypt
+{{- if eq (index . "https_enabled") "true"}}
+      - {{index . "certs_dir"}}:/certs:ro
+{{- end}}
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - {{index . "network"}}
+
+networks:
+  {{index . "network"}}:
+    external: true
