@@ -249,11 +249,12 @@ var serveCmd = &cobra.Command{
 		if cfg.Prune.Enabled {
 			pruneFunc := func() {
 				slog.Info("Scheduled prune: cleaning up Docker resources")
+				runtime := cfg.Docker.Runtime
 				cmds := [][]string{
-					{"docker", "image", "prune", "-af"},
-					{"docker", "volume", "prune", "-f"},
-					{"docker", "network", "prune", "-f"},
-					{"docker", "builder", "prune", "-af"},
+					{runtime, "image", "prune", "-af"},
+					{runtime, "volume", "prune", "-f"},
+					{runtime, "network", "prune", "-f"},
+					{runtime, "builder", "prune", "-af"},
 				}
 				for _, c := range cmds {
 					if _, err := runner.Run(c[0], c[1:]...); err != nil {

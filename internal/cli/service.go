@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
+
+	"github.com/jdillenberger/homelabctl/internal/config"
 )
 
 const (
@@ -39,11 +41,11 @@ func homelabctlBinary() string {
 	return resolved
 }
 
-func generateUnitFile() string {
+func generateUnitFile(runtime string) string {
 	binPath := homelabctlBinary()
 	return fmt.Sprintf(`[Unit]
 Description=homelabctl management daemon
-After=network-online.target docker.service
+After=network-online.target %s.service
 Wants=network-online.target
 
 [Service]
@@ -56,14 +58,18 @@ StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
-`, binPath)
+`, runtime, binPath)
 }
 
 var serviceInstallCmd = &cobra.Command{
 	Use:   "install",
 	Short: "Install the homelabctl systemd service",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		unit := generateUnitFile()
+		cfg, err := config.Load()
+		if err != nil {
+			return err
+		}
+		unit := generateUnitFile(cfg.Docker.Runtime)
 
 		if err := os.WriteFile(unitPath, []byte(unit), 0o644); err != nil {
 			return fmt.Errorf("writing unit file: %w (are you root?)", err)

@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/jdillenberger/homelabctl/internal/config"
 	"github.com/jdillenberger/homelabctl/internal/exec"
 )
 
@@ -22,11 +23,17 @@ var pruneCmd = &cobra.Command{
 		force, _ := cmd.Flags().GetBool("force")
 		runner := &exec.Runner{Verbose: verbose}
 
+		cfg, err := config.Load()
+		if err != nil {
+			return err
+		}
+		runtime := cfg.Docker.Runtime
+
 		if !force {
 			fmt.Println("Dry run — showing resources that would be cleaned up:")
 
 			// Dangling images
-			result, err := runner.Run("docker", "image", "ls", "--filter", "dangling=true", "--format", "{{.Repository}}:{{.Tag}}\t{{.Size}}")
+			result, err := runner.Run(runtime, "image", "ls", "--filter", "dangling=true", "--format", "{{.Repository}}:{{.Tag}}\t{{.Size}}")
 			if err == nil && strings.TrimSpace(result.Stdout) != "" {
 				fmt.Println("Dangling images:")
 				fmt.Println(result.Stdout)
@@ -35,7 +42,7 @@ var pruneCmd = &cobra.Command{
 			}
 
 			// Unused volumes
-			result, err = runner.Run("docker", "volume", "ls", "--filter", "dangling=true", "--format", "{{.Name}}")
+			result, err = runner.Run(runtime, "volume", "ls", "--filter", "dangling=true", "--format", "{{.Name}}")
 			if err == nil && strings.TrimSpace(result.Stdout) != "" {
 				fmt.Println("Unused volumes:")
 				fmt.Println(result.Stdout)
@@ -61,7 +68,7 @@ var pruneCmd = &cobra.Command{
 
 		for _, op := range ops {
 			fmt.Printf("Pruning %s...\n", op.label)
-			result, err := runner.Run("docker", op.args...)
+			result, err := runner.Run(runtime, op.args...)
 			if err != nil {
 				fmt.Printf("  Warning: %v\n", err)
 				continue

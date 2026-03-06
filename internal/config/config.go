@@ -42,6 +42,7 @@ type NetworkConfig struct {
 }
 
 type DockerConfig struct {
+	Runtime        string `mapstructure:"runtime" yaml:"runtime"`
 	ComposeCommand string `mapstructure:"compose_command" yaml:"compose_command"`
 	DefaultNetwork string `mapstructure:"default_network" yaml:"default_network"`
 }
@@ -136,6 +137,7 @@ func DefaultConfig() *Config {
 			WebPort: 8080,
 		},
 		Docker: DockerConfig{
+			Runtime:        "docker",
 			ComposeCommand: "docker compose",
 			DefaultNetwork: "homelabctl-net",
 		},
@@ -183,6 +185,7 @@ func SetDefaults() {
 	viper.SetDefault("templates_dir", d.TemplatesDir)
 	viper.SetDefault("network.domain", d.Network.Domain)
 	viper.SetDefault("network.web_port", d.Network.WebPort)
+	viper.SetDefault("docker.runtime", d.Docker.Runtime)
 	viper.SetDefault("docker.compose_command", d.Docker.ComposeCommand)
 	viper.SetDefault("docker.default_network", d.Docker.DefaultNetwork)
 	viper.SetDefault("mdns.enabled", d.MDNS.Enabled)
@@ -242,6 +245,9 @@ func Validate(c *Config) []string {
 	}
 	if c.Network.WebPort < 1 || c.Network.WebPort > 65535 {
 		errs = append(errs, "network.web_port must be between 1 and 65535")
+	}
+	if c.Docker.Runtime == "" {
+		errs = append(errs, "docker.runtime is empty")
 	}
 	if c.Docker.ComposeCommand == "" {
 		errs = append(errs, "docker.compose_command is empty")

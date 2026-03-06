@@ -70,9 +70,9 @@ func (m *Manager) Registry() *Registry {
 func (m *Manager) ensureNetwork() error {
 	network := m.cfg.Docker.DefaultNetwork
 	// Try to create; if it already exists the error is harmless.
-	if _, err := m.runner.Run("docker", "network", "create", network); err != nil {
+	if _, err := m.runner.Run(m.cfg.Docker.Runtime, "network", "create", network); err != nil {
 		// Verify the network actually exists (it may have been created concurrently).
-		if _, inspectErr := m.runner.Run("docker", "network", "inspect", network); inspectErr != nil {
+		if _, inspectErr := m.runner.Run(m.cfg.Docker.Runtime, "network", "inspect", network); inspectErr != nil {
 			return fmt.Errorf("ensuring docker network %s: %w", network, err)
 		}
 	}
@@ -393,7 +393,7 @@ func (m *Manager) Remove(appName string, keepData bool) error {
 		dataDir := m.cfg.DataPath(appName)
 		if err := os.RemoveAll(dataDir); err != nil {
 			// Containers often create root-owned files. Clean contents via Docker, then remove the dir.
-			if _, dockerErr := m.runner.Run("docker", "run", "--rm",
+			if _, dockerErr := m.runner.Run(m.cfg.Docker.Runtime, "run", "--rm",
 				"-v", dataDir+":/data", "alpine", "sh", "-c", "rm -rf /data/*"); dockerErr != nil {
 				return fmt.Errorf("removing data directory: %w (docker fallback also failed: %v)", err, dockerErr)
 			}
