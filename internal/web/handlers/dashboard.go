@@ -21,7 +21,7 @@ type PortalApp struct {
 	DeployedAt  string
 	Health      string // "healthy", "unhealthy", "unknown"
 	AccessURL   string
-	IngressURL  string
+	RoutingURL  string
 }
 
 // FleetPeer represents a discovered peer server.
@@ -95,13 +95,13 @@ func (h *Handler) Dashboard(c echo.Context) error {
 			}
 		}
 
-		// Set ingress URL if available
-		if info.Ingress != nil && info.Ingress.Enabled && len(info.Ingress.Domains) > 0 {
+		// Set routing URL if available
+		if info.Routing != nil && info.Routing.Enabled && len(info.Routing.Domains) > 0 {
 			scheme := "http"
-			if h.cfg.Ingress.HTTPS.Enabled {
+			if h.cfg.Routing.HTTPS.Enabled {
 				scheme = "https"
 			}
-			pa.IngressURL = fmt.Sprintf("%s://%s", scheme, info.Ingress.Domains[0])
+			pa.RoutingURL = fmt.Sprintf("%s://%s", scheme, info.Routing.Domains[0])
 		}
 
 		portalApps = append(portalApps, pa)

@@ -15,29 +15,29 @@ import (
 )
 
 func init() {
-	rootCmd.AddCommand(ingressCmd)
-	ingressCmd.AddCommand(ingressListCmd)
-	ingressCmd.AddCommand(ingressStatusCmd)
-	ingressCmd.AddCommand(ingressAddCmd)
-	ingressCmd.AddCommand(ingressRemoveCmd)
-	ingressCmd.AddCommand(ingressEnableCmd)
-	ingressCmd.AddCommand(ingressDisableCmd)
+	rootCmd.AddCommand(routingCmd)
+	routingCmd.AddCommand(routingListCmd)
+	routingCmd.AddCommand(routingStatusCmd)
+	routingCmd.AddCommand(routingAddCmd)
+	routingCmd.AddCommand(routingRemoveCmd)
+	routingCmd.AddCommand(routingEnableCmd)
+	routingCmd.AddCommand(routingDisableCmd)
 
-	ingressAddCmd.ValidArgsFunction = completeDeployedApps
-	ingressRemoveCmd.ValidArgsFunction = completeDeployedApps
-	ingressEnableCmd.ValidArgsFunction = completeDeployedApps
-	ingressDisableCmd.ValidArgsFunction = completeDeployedApps
+	routingAddCmd.ValidArgsFunction = completeDeployedApps
+	routingRemoveCmd.ValidArgsFunction = completeDeployedApps
+	routingEnableCmd.ValidArgsFunction = completeDeployedApps
+	routingDisableCmd.ValidArgsFunction = completeDeployedApps
 }
 
-var ingressCmd = &cobra.Command{
-	Use:   "ingress",
-	Short: "Manage app ingress and domains",
-	Long:  "Manage reverse proxy ingress configuration and domain mappings for deployed apps.",
+var routingCmd = &cobra.Command{
+	Use:   "routing",
+	Short: "Manage app routing and domains",
+	Long:  "Manage reverse proxy routing configuration and domain mappings for deployed apps.",
 }
 
-var ingressListCmd = &cobra.Command{
+var routingListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List ingress configuration for all apps",
+	Short: "List routing configuration for all apps",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := config.Load()
 		if err != nil {
@@ -59,24 +59,24 @@ var ingressListCmd = &cobra.Command{
 			return nil
 		}
 
-		type ingressEntry struct {
+		type routingEntry struct {
 			App     string `json:"app"`
 			Enabled bool   `json:"enabled"`
 			Domains string `json:"domains"`
 			Port    int    `json:"port"`
 		}
 
-		var entries []ingressEntry
+		var entries []routingEntry
 		for _, name := range deployed {
 			info, err := mgr.GetDeployedInfo(name)
 			if err != nil {
 				continue
 			}
-			entry := ingressEntry{App: name}
-			if info.Ingress != nil {
-				entry.Enabled = info.Ingress.Enabled
-				entry.Domains = strings.Join(info.Ingress.Domains, ", ")
-				entry.Port = info.Ingress.ContainerPort
+			entry := routingEntry{App: name}
+			if info.Routing != nil {
+				entry.Enabled = info.Routing.Enabled
+				entry.Domains = strings.Join(info.Routing.Domains, ", ")
+				entry.Port = info.Routing.ContainerPort
 			}
 			entries = append(entries, entry)
 		}
@@ -96,30 +96,30 @@ var ingressListCmd = &cobra.Command{
 		}
 		w.Flush()
 
-		if !cfg.Ingress.Enabled {
-			fmt.Println("\nNote: ingress is not enabled. Run 'homelabctl config set ingress.enabled true' to enable.")
+		if !cfg.Routing.Enabled {
+			fmt.Println("\nNote: routing is not enabled. Run 'homelabctl config set routing.enabled true' to enable.")
 		}
 
 		return nil
 	},
 }
 
-var ingressStatusCmd = &cobra.Command{
+var routingStatusCmd = &cobra.Command{
 	Use:   "status",
-	Short: "Show ingress system status",
+	Short: "Show routing system status",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := config.Load()
 		if err != nil {
 			return err
 		}
 
-		fmt.Printf("Ingress enabled:  %v\n", cfg.Ingress.Enabled)
-		fmt.Printf("Provider:         %s\n", cfg.Ingress.Provider)
-		fmt.Printf("Domain:           %s\n", cfg.IngressDomain())
-		fmt.Printf("HTTPS enabled:    %v\n", cfg.Ingress.HTTPS.Enabled)
-		if cfg.Ingress.HTTPS.Enabled {
-			if cfg.Ingress.HTTPS.AcmeEmail != "" {
-				fmt.Printf("ACME email:       %s\n", cfg.Ingress.HTTPS.AcmeEmail)
+		fmt.Printf("Routing enabled:  %v\n", cfg.Routing.Enabled)
+		fmt.Printf("Provider:         %s\n", cfg.Routing.Provider)
+		fmt.Printf("Domain:           %s\n", cfg.RoutingDomain())
+		fmt.Printf("HTTPS enabled:    %v\n", cfg.Routing.HTTPS.Enabled)
+		if cfg.Routing.HTTPS.Enabled {
+			if cfg.Routing.HTTPS.AcmeEmail != "" {
+				fmt.Printf("ACME email:       %s\n", cfg.Routing.HTTPS.AcmeEmail)
 			}
 			caCertPath := filepath.Join(cfg.DataPath("traefik"), "certs", "ca.crt")
 			fmt.Printf("CA certificate:   %s\n", caCertPath)
@@ -127,7 +127,7 @@ var ingressStatusCmd = &cobra.Command{
 			fmt.Printf("  sudo cp %s /usr/local/share/ca-certificates/homelabctl-ca.crt && sudo update-ca-certificates\n", caCertPath)
 		}
 
-		if cfg.Ingress.Enabled {
+		if cfg.Routing.Enabled {
 			// Check if Traefik is deployed
 			mgr, err := newManager()
 			if err != nil {
@@ -152,41 +152,41 @@ var ingressStatusCmd = &cobra.Command{
 	},
 }
 
-var ingressAddCmd = &cobra.Command{
+var routingAddCmd = &cobra.Command{
 	Use:   "add <app> <domain>",
-	Short: "Add a domain to an app's ingress",
+	Short: "Add a domain to an app's routing",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		appName, domain := args[0], args[1]
-		return modifyIngress(appName, func(info *app.DeployedApp) error {
-			if info.Ingress == nil {
-				return fmt.Errorf("app %s has no ingress configuration", appName)
+		return modifyRouting(appName, func(info *app.DeployedApp) error {
+			if info.Routing == nil {
+				return fmt.Errorf("app %s has no routing configuration", appName)
 			}
-			for _, d := range info.Ingress.Domains {
+			for _, d := range info.Routing.Domains {
 				if d == domain {
 					return fmt.Errorf("domain %s already configured for %s", domain, appName)
 				}
 			}
-			info.Ingress.Domains = append(info.Ingress.Domains, domain)
+			info.Routing.Domains = append(info.Routing.Domains, domain)
 			fmt.Printf("Added domain %s to %s\n", domain, appName)
 			return nil
 		})
 	},
 }
 
-var ingressRemoveCmd = &cobra.Command{
+var routingRemoveCmd = &cobra.Command{
 	Use:   "remove <app> <domain>",
-	Short: "Remove a domain from an app's ingress",
+	Short: "Remove a domain from an app's routing",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		appName, domain := args[0], args[1]
-		return modifyIngress(appName, func(info *app.DeployedApp) error {
-			if info.Ingress == nil {
-				return fmt.Errorf("app %s has no ingress configuration", appName)
+		return modifyRouting(appName, func(info *app.DeployedApp) error {
+			if info.Routing == nil {
+				return fmt.Errorf("app %s has no routing configuration", appName)
 			}
 			var newDomains []string
 			found := false
-			for _, d := range info.Ingress.Domains {
+			for _, d := range info.Routing.Domains {
 				if d == domain {
 					found = true
 				} else {
@@ -196,21 +196,21 @@ var ingressRemoveCmd = &cobra.Command{
 			if !found {
 				return fmt.Errorf("domain %s not found in %s", domain, appName)
 			}
-			info.Ingress.Domains = newDomains
+			info.Routing.Domains = newDomains
 			fmt.Printf("Removed domain %s from %s\n", domain, appName)
 			return nil
 		})
 	},
 }
 
-var ingressEnableCmd = &cobra.Command{
+var routingEnableCmd = &cobra.Command{
 	Use:   "enable <app>",
-	Short: "Enable ingress for an app",
+	Short: "Enable routing for an app",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		appName := args[0]
-		return modifyIngress(appName, func(info *app.DeployedApp) error {
-			if info.Ingress == nil {
+		return modifyRouting(appName, func(info *app.DeployedApp) error {
+			if info.Routing == nil {
 				cfg, err := config.Load()
 				if err != nil {
 					return err
@@ -223,35 +223,35 @@ var ingressEnableCmd = &cobra.Command{
 				if !ok {
 					return fmt.Errorf("unknown app template: %s", appName)
 				}
-				info.Ingress = computeDefaultIngress(cfg, appName, meta)
+				info.Routing = computeDefaultRouting(cfg, appName, meta)
 			}
-			info.Ingress.Enabled = true
-			fmt.Printf("Ingress enabled for %s\n", appName)
+			info.Routing.Enabled = true
+			fmt.Printf("Routing enabled for %s\n", appName)
 			return nil
 		})
 	},
 }
 
-var ingressDisableCmd = &cobra.Command{
+var routingDisableCmd = &cobra.Command{
 	Use:   "disable <app>",
-	Short: "Disable ingress for an app",
+	Short: "Disable routing for an app",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		appName := args[0]
-		return modifyIngress(appName, func(info *app.DeployedApp) error {
-			if info.Ingress == nil {
-				info.Ingress = &app.DeployedIngress{}
+		return modifyRouting(appName, func(info *app.DeployedApp) error {
+			if info.Routing == nil {
+				info.Routing = &app.DeployedRouting{}
 			}
-			info.Ingress.Enabled = false
-			fmt.Printf("Ingress disabled for %s\n", appName)
+			info.Routing.Enabled = false
+			fmt.Printf("Routing disabled for %s\n", appName)
 			return nil
 		})
 	},
 }
 
-// modifyIngress loads a deployed app, applies the given modification function,
+// modifyRouting loads a deployed app, applies the given modification function,
 // saves the updated info, regenerates the compose file, and restarts the app.
-func modifyIngress(appName string, modFn func(*app.DeployedApp) error) error {
+func modifyRouting(appName string, modFn func(*app.DeployedApp) error) error {
 	mgr, err := newManager()
 	if err != nil {
 		return err
@@ -277,19 +277,19 @@ func modifyIngress(appName string, modFn func(*app.DeployedApp) error) error {
 	return nil
 }
 
-// computeDefaultIngress builds a DeployedIngress using config defaults.
-func computeDefaultIngress(cfg *config.Config, appName string, meta *app.AppMeta) *app.DeployedIngress {
-	ingress := &app.DeployedIngress{
+// computeDefaultRouting builds a DeployedRouting using config defaults.
+func computeDefaultRouting(cfg *config.Config, appName string, meta *app.AppMeta) *app.DeployedRouting {
+	routing := &app.DeployedRouting{
 		Enabled:   true,
-		Domains:   []string{appName + "." + cfg.IngressDomain()},
+		Domains:   []string{appName + "." + cfg.RoutingDomain()},
 		KeepPorts: true,
 	}
 
 	if len(meta.Ports) > 0 {
-		ingress.ContainerPort = meta.Ports[0].Container
+		routing.ContainerPort = meta.Ports[0].Container
 	} else {
-		ingress.ContainerPort = 80
+		routing.ContainerPort = 80
 	}
 
-	return ingress
+	return routing
 }

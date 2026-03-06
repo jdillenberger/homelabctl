@@ -9,9 +9,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// IngressMeta holds per-template ingress configuration.
-type IngressMeta struct {
-	Enabled       *bool  `yaml:"enabled"`        // nil = inherit global (true), false = no ingress
+// RoutingMeta holds per-template routing configuration.
+type RoutingMeta struct {
+	Enabled       *bool  `yaml:"enabled"`        // nil = inherit global (true), false = no routing
 	Subdomain     string `yaml:"subdomain"`       // override (default: app name)
 	ContainerPort int    `yaml:"container_port"`  // which port to proxy to (default: first port's Container)
 	Websocket     bool   `yaml:"websocket"`       // enable WS upgrade
@@ -33,7 +33,7 @@ type AppMeta struct {
 	Requirements   *Requirements   `yaml:"requirements"`
 	PostDeployInfo *PostDeployInfo `yaml:"post_deploy_info"`
 	Hooks          *HooksMeta      `yaml:"hooks"`
-	Ingress        *IngressMeta    `yaml:"ingress"`
+	Routing        *RoutingMeta    `yaml:"routing"`
 	RequiresBuild  bool            `yaml:"requires_build"`
 	LintIgnore     []string        `yaml:"lint_ignore"`
 }

@@ -9,27 +9,27 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// IngressLabeler injects Traefik labels into docker-compose YAML.
-type IngressLabeler struct {
+// RoutingLabeler injects Traefik labels into docker-compose YAML.
+type RoutingLabeler struct {
 	domain       string
 	httpsEnabled bool
 	acmeEmail    string
 	network      string
 }
 
-// NewIngressLabeler creates a labeler from the current config.
-func NewIngressLabeler(cfg *config.Config) *IngressLabeler {
-	return &IngressLabeler{
-		domain:       cfg.IngressDomain(),
-		httpsEnabled: cfg.Ingress.HTTPS.Enabled,
-		acmeEmail:    cfg.Ingress.HTTPS.AcmeEmail,
+// NewRoutingLabeler creates a labeler from the current config.
+func NewRoutingLabeler(cfg *config.Config) *RoutingLabeler {
+	return &RoutingLabeler{
+		domain:       cfg.RoutingDomain(),
+		httpsEnabled: cfg.Routing.HTTPS.Enabled,
+		acmeEmail:    cfg.Routing.HTTPS.AcmeEmail,
 		network:      cfg.Docker.DefaultNetwork,
 	}
 }
 
 // InjectLabels parses docker-compose YAML, adds Traefik labels to the primary
 // service, optionally removes host port bindings, and returns modified YAML.
-func (l *IngressLabeler) InjectLabels(composeYAML string, appName string, ingress *DeployedIngress) (string, error) {
+func (l *RoutingLabeler) InjectLabels(composeYAML string, appName string, routing *DeployedRouting) (string, error) {
 	var doc map[string]interface{}
 	if err := yaml.Unmarshal([]byte(composeYAML), &doc); err != nil {
 		return "", fmt.Errorf("parsing compose YAML: %w", err)
@@ -77,7 +77,7 @@ func (l *IngressLabeler) InjectLabels(composeYAML string, appName string, ingres
 	}
 
 	// Build Traefik labels
-	labels := l.buildLabels(appName, ingress)
+	labels := l.buildLabels(appName, routing)
 
 	// Merge labels into service
 	existingLabels := getLabelsMap(primarySvc)
@@ -93,7 +93,7 @@ func (l *IngressLabeler) InjectLabels(composeYAML string, appName string, ingres
 	primarySvc["labels"] = labelsList
 
 	// Remove ports if KeepPorts is false
-	if !ingress.KeepPorts {
+	if !routing.KeepPorts {
 		delete(primarySvc, "ports")
 	}
 
@@ -108,19 +108,19 @@ func (l *IngressLabeler) InjectLabels(composeYAML string, appName string, ingres
 	return string(out), nil
 }
 
-func (l *IngressLabeler) buildLabels(appName string, ingress *DeployedIngress) map[string]string {
+func (l *RoutingLabeler) buildLabels(appName string, routing *DeployedRouting) map[string]string {
 	// Sanitize app name for use in Traefik router names
 	routerName := strings.ReplaceAll(appName, ".", "-")
 	routerName = strings.ReplaceAll(routerName, "_", "-")
 
 	labels := map[string]string{
 		"traefik.enable": "true",
-		fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port", routerName): fmt.Sprintf("%d", ingress.ContainerPort),
+		fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port", routerName): fmt.Sprintf("%d", routing.ContainerPort),
 	}
 
 	// Build Host rule for all domains
 	var allHostParts []string
-	for _, d := range ingress.Domains {
+	for _, d := range routing.Domains {
 		allHostParts = append(allHostParts, fmt.Sprintf("Host(`%s`)", d))
 	}
 	allRule := strings.Join(allHostParts, " || ")
@@ -140,7 +140,7 @@ func (l *IngressLabeler) buildLabels(appName string, ingress *DeployedIngress) m
 
 	// Classify domains
 	var localDomains, externalDomains []string
-	for _, d := range ingress.Domains {
+	for _, d := range routing.Domains {
 		if isLocalDomain(d) {
 			localDomains = append(localDomains, d)
 		} else {
@@ -177,7 +177,7 @@ func (l *IngressLabeler) buildLabels(appName string, ingress *DeployedIngress) m
 
 // addSecureRouter adds labels for a HTTPS router. If useACME is true, it uses
 // the letsencrypt certresolver; otherwise it relies on the file provider cert.
-func (l *IngressLabeler) addSecureRouter(labels map[string]string, serviceName, routerName, rule string, useACME bool) {
+func (l *RoutingLabeler) addSecureRouter(labels map[string]string, serviceName, routerName, rule string, useACME bool) {
 	labels[fmt.Sprintf("traefik.http.routers.%s.entrypoints", routerName)] = "websecure"
 	labels[fmt.Sprintf("traefik.http.routers.%s.rule", routerName)] = rule
 	labels[fmt.Sprintf("traefik.http.routers.%s.tls", routerName)] = "true"
@@ -219,45 +219,45 @@ func getLabelsMap(svc map[string]interface{}) map[string]string {
 	return result
 }
 
-// computeIngress builds a DeployedIngress from config and app metadata.
-func computeIngress(cfg *config.Config, appName string, meta *AppMeta) *DeployedIngress {
-	ingress := &DeployedIngress{
+// computeRouting builds a DeployedRouting from config and app metadata.
+func computeRouting(cfg *config.Config, appName string, meta *AppMeta) *DeployedRouting {
+	r := &DeployedRouting{
 		Enabled:   true,
 		KeepPorts: true,
 	}
 
-	// Check if app explicitly disables ingress
-	if meta.Ingress != nil && meta.Ingress.Enabled != nil && !*meta.Ingress.Enabled {
-		ingress.Enabled = false
-		return ingress
+	// Check if app explicitly disables routing
+	if meta.Routing != nil && meta.Routing.Enabled != nil && !*meta.Routing.Enabled {
+		r.Enabled = false
+		return r
 	}
 
 	// Determine subdomain
 	subdomain := appName
-	if meta.Ingress != nil && meta.Ingress.Subdomain != "" {
-		subdomain = meta.Ingress.Subdomain
+	if meta.Routing != nil && meta.Routing.Subdomain != "" {
+		subdomain = meta.Routing.Subdomain
 	}
-	ingress.Domains = []string{subdomain + "." + cfg.IngressDomain()}
+	r.Domains = []string{subdomain + "." + cfg.RoutingDomain()}
 
 	// Determine container port
-	if meta.Ingress != nil && meta.Ingress.ContainerPort > 0 {
-		ingress.ContainerPort = meta.Ingress.ContainerPort
+	if meta.Routing != nil && meta.Routing.ContainerPort > 0 {
+		r.ContainerPort = meta.Routing.ContainerPort
 	} else if len(meta.Ports) > 0 {
-		ingress.ContainerPort = meta.Ports[0].Container
+		r.ContainerPort = meta.Ports[0].Container
 	} else {
-		ingress.ContainerPort = 80
+		r.ContainerPort = 80
 	}
 
 	// Determine KeepPorts
-	if meta.Ingress != nil && meta.Ingress.KeepPorts != nil {
-		ingress.KeepPorts = *meta.Ingress.KeepPorts
+	if meta.Routing != nil && meta.Routing.KeepPorts != nil {
+		r.KeepPorts = *meta.Routing.KeepPorts
 	}
 
-	return ingress
+	return r
 }
 
 // RegenerateCompose re-renders the template for a deployed app and re-injects
-// ingress labels if applicable. It writes the updated compose file and runs
+// routing labels if applicable. It writes the updated compose file and runs
 // docker compose up -d.
 func (m *Manager) RegenerateCompose(appName string) error {
 	info, err := m.GetDeployedInfo(appName)
@@ -276,11 +276,11 @@ func (m *Manager) RegenerateCompose(appName string) error {
 		return fmt.Errorf("rendering templates: %w", err)
 	}
 
-	// Inject ingress labels if enabled
-	if m.cfg.Ingress.Enabled && m.cfg.Ingress.Provider == "traefik" && info.Ingress != nil && info.Ingress.Enabled {
-		labeler := NewIngressLabeler(m.cfg)
+	// Inject routing labels if enabled
+	if m.cfg.Routing.Enabled && m.cfg.Routing.Provider == "traefik" && info.Routing != nil && info.Routing.Enabled {
+		labeler := NewRoutingLabeler(m.cfg)
 		if compose, ok := rendered["docker-compose.yml"]; ok {
-			modified, err := labeler.InjectLabels(compose, appName, info.Ingress)
+			modified, err := labeler.InjectLabels(compose, appName, info.Routing)
 			if err != nil {
 				return fmt.Errorf("injecting labels: %w", err)
 			}

@@ -33,12 +33,12 @@ type Config struct {
 	Updates UpdatesConfig `mapstructure:"updates" yaml:"updates"`
 	Prune   PruneConfig   `mapstructure:"prune" yaml:"prune"`
 
-	Ingress IngressConfig `mapstructure:"ingress" yaml:"ingress"`
+	Routing RoutingConfig `mapstructure:"routing" yaml:"routing"`
 
 	Integrations IntegrationsConfig `mapstructure:"integrations" yaml:"integrations"`
 }
 
-type IngressConfig struct {
+type RoutingConfig struct {
 	Enabled  bool        `mapstructure:"enabled" yaml:"enabled"`
 	Provider string      `mapstructure:"provider" yaml:"provider"`
 	Domain   string      `mapstructure:"domain" yaml:"domain"`
@@ -187,7 +187,7 @@ func DefaultConfig() *Config {
 			Enabled:  false,
 			Schedule: "0 5 * * 0",
 		},
-		Ingress: IngressConfig{
+		Routing: RoutingConfig{
 			Enabled:  false,
 			Provider: "traefik",
 			Domain:   "",
@@ -228,11 +228,11 @@ func SetDefaults() {
 	viper.SetDefault("updates.schedule", d.Updates.Schedule)
 	viper.SetDefault("prune.enabled", d.Prune.Enabled)
 	viper.SetDefault("prune.schedule", d.Prune.Schedule)
-	viper.SetDefault("ingress.enabled", d.Ingress.Enabled)
-	viper.SetDefault("ingress.provider", d.Ingress.Provider)
-	viper.SetDefault("ingress.domain", d.Ingress.Domain)
-	viper.SetDefault("ingress.https.enabled", d.Ingress.HTTPS.Enabled)
-	viper.SetDefault("ingress.https.acme_email", d.Ingress.HTTPS.AcmeEmail)
+	viper.SetDefault("routing.enabled", d.Routing.Enabled)
+	viper.SetDefault("routing.provider", d.Routing.Provider)
+	viper.SetDefault("routing.domain", d.Routing.Domain)
+	viper.SetDefault("routing.https.enabled", d.Routing.HTTPS.Enabled)
+	viper.SetDefault("routing.https.acme_email", d.Routing.HTTPS.AcmeEmail)
 }
 
 // Load reads the global config from viper into a Config struct.
@@ -285,9 +285,9 @@ func Validate(c *Config) []string {
 	if c.Backup.Enabled && c.Backup.BorgRepo == "" {
 		errs = append(errs, "backup.borg_repo is empty but backup is enabled")
 	}
-	if c.Ingress.Enabled {
-		if c.Ingress.Provider != "traefik" {
-			errs = append(errs, "ingress.provider must be \"traefik\"")
+	if c.Routing.Enabled {
+		if c.Routing.Provider != "traefik" {
+			errs = append(errs, "routing.provider must be \"traefik\"")
 		}
 	}
 
@@ -312,10 +312,10 @@ func (c *Config) ManifestPath() string {
 	return filepath.Join(home, ".homelabctl", "repos.yaml")
 }
 
-// IngressDomain returns the effective ingress domain, falling back to network.domain.
-func (c *Config) IngressDomain() string {
-	if c.Ingress.Domain != "" {
-		return c.Ingress.Domain
+// RoutingDomain returns the effective routing domain, falling back to network.domain.
+func (c *Config) RoutingDomain() string {
+	if c.Routing.Domain != "" {
+		return c.Routing.Domain
 	}
 	return c.Hostname + "." + c.Network.Domain
 }

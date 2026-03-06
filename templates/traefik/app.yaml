@@ -55,7 +55,7 @@ volumes:
 health_check:
   url: "http://localhost:{{.dashboard_port}}/ping"
   interval: 30s
-ingress:
+routing:
   enabled: false
 requirements:
   min_ram: 64M

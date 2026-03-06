@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -13,6 +12,8 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
 // HealthStatus represents the health state of an app.
@@ -142,20 +143,20 @@ func (hc *HealthChecker) CheckApp(meta *AppMeta, compose *Compose, appDir string
 }
 
 // resolveHealthURL renders Go template placeholders in a health check URL
-// using the deployed app's values from .homelabctl.json.
+// using the deployed app's values from .homelabctl.yaml.
 func resolveHealthURL(rawURL, appDir string) string {
 	if !strings.Contains(rawURL, "{{") {
 		return rawURL
 	}
 
-	data, err := os.ReadFile(filepath.Join(appDir, ".homelabctl.json"))
+	data, err := os.ReadFile(filepath.Join(appDir, ".homelabctl.yaml"))
 	if err != nil {
 		return rawURL
 	}
 	var info struct {
-		Values map[string]string `json:"values"`
+		Values map[string]string `yaml:"values"`
 	}
-	if err := json.Unmarshal(data, &info); err != nil || info.Values == nil {
+	if err := yaml.Unmarshal(data, &info); err != nil || info.Values == nil {
 		return rawURL
 	}
 

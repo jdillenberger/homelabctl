@@ -74,15 +74,15 @@ var serveCmd = &cobra.Command{
 				defer shutdownMDNS()
 			}
 
-			// Advertise app ingress domains via Avahi CNAME
+			// Advertise app routing domains via Avahi CNAME
 			if cfg.MDNS.AdvertiseApps {
 				avahiMgr := mdns.NewAvahiCNAME(runner)
 				for _, appName := range deployedApps {
 					info, err := mgr.GetDeployedInfo(appName)
-					if err != nil || info.Ingress == nil || !info.Ingress.Enabled {
+					if err != nil || info.Routing == nil || !info.Routing.Enabled {
 						continue
 					}
-					for _, domain := range info.Ingress.Domains {
+					for _, domain := range info.Routing.Domains {
 						if strings.HasSuffix(domain, ".local") {
 							if err := avahiMgr.PublishCNAME(appName+":"+domain, domain); err != nil {
 								slog.Warn("Failed to publish CNAME", "domain", domain, "error", err)
@@ -93,11 +93,11 @@ var serveCmd = &cobra.Command{
 				defer avahiMgr.Shutdown()
 
 				// Wire Manager callbacks for dynamic CNAME management
-				mgr.OnDeploy = func(appName string, ingress *app.DeployedIngress) {
-					if ingress == nil || !ingress.Enabled {
+				mgr.OnDeploy = func(appName string, routing *app.DeployedRouting) {
+					if routing == nil || !routing.Enabled {
 						return
 					}
-					for _, d := range ingress.Domains {
+					for _, d := range routing.Domains {
 						if strings.HasSuffix(d, ".local") {
 							if err := avahiMgr.PublishCNAME(appName+":"+d, d); err != nil {
 								slog.Warn("Failed to publish CNAME", "domain", d, "error", err)

@@ -3,7 +3,6 @@ package app
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -18,24 +17,25 @@ import (
 	"github.com/google/uuid"
 	"github.com/jdillenberger/homelabctl/internal/config"
 	"github.com/jdillenberger/homelabctl/internal/exec"
+	"gopkg.in/yaml.v3"
 )
 
-// DeployedIngress holds per-app ingress state.
-type DeployedIngress struct {
-	Enabled       bool     `json:"enabled"`
-	Domains       []string `json:"domains"`
-	ContainerPort int      `json:"container_port"`
-	KeepPorts     bool     `json:"keep_ports"`
+// DeployedRouting holds per-app routing state.
+type DeployedRouting struct {
+	Enabled       bool     `yaml:"enabled"`
+	Domains       []string `yaml:"domains"`
+	ContainerPort int      `yaml:"container_port"`
+	KeepPorts     bool     `yaml:"keep_ports"`
 }
 
 // DeployedApp holds information about a deployed app instance.
 type DeployedApp struct {
-	Name       string            `json:"name"`
-	Template   string            `json:"template"`
-	Values     map[string]string `json:"values"`
-	DeployedAt time.Time         `json:"deployed_at"`
-	Version    string            `json:"version"`
-	Ingress    *DeployedIngress  `json:"ingress,omitempty"`
+	Name       string            `yaml:"name"`
+	Template   string            `yaml:"template"`
+	Values     map[string]string `yaml:"values"`
+	DeployedAt time.Time         `yaml:"deployed_at"`
+	Version    string            `yaml:"version"`
+	Routing    *DeployedRouting  `yaml:"routing,omitempty"`
 }
 
 // DeployOptions holds parameters for a deploy operation.
@@ -53,7 +53,7 @@ type Manager struct {
 	compose  *Compose
 	runner   *exec.Runner
 
-	OnDeploy func(appName string, ingress *DeployedIngress)
+	OnDeploy func(appName string, routing *DeployedRouting)
 	OnRemove func(appName string)
 }
 
@@ -133,7 +133,7 @@ func (m *Manager) Deploy(appName string, opts DeployOptions) error {
 
 	// Check if already deployed
 	appDir := m.cfg.AppDir(appName)
-	if _, err := os.Stat(filepath.Join(appDir, ".homelabctl.json")); err == nil {
+	if _, err := os.Stat(filepath.Join(appDir, ".homelabctl.yaml")); err == nil {
 		return fmt.Errorf("app %s is already deployed (remove first)", appName)
 	}
 
@@ -187,16 +187,16 @@ func (m *Manager) Deploy(appName string, opts DeployOptions) error {
 	mergedValues["network"] = m.cfg.Docker.DefaultNetwork
 
 	// Auto-populate HTTPS values for traefik
-	if appName == "traefik" && m.cfg.Ingress.HTTPS.Enabled {
+	if appName == "traefik" && m.cfg.Routing.HTTPS.Enabled {
 		mergedValues["https_enabled"] = "true"
-		mergedValues["acme_email"] = m.cfg.Ingress.HTTPS.AcmeEmail
+		mergedValues["acme_email"] = m.cfg.Routing.HTTPS.AcmeEmail
 		mergedValues["certs_dir"] = filepath.Join(m.cfg.DataPath("traefik"), "certs")
 	}
 
 	// Generate local certificates for traefik
-	if appName == "traefik" && m.cfg.Ingress.HTTPS.Enabled {
+	if appName == "traefik" && m.cfg.Routing.HTTPS.Enabled {
 		cm := NewCertManager(m.cfg.DataPath("traefik"))
-		if err := cm.EnsureCerts(m.cfg.IngressDomain()); err != nil {
+		if err := cm.EnsureCerts(m.cfg.RoutingDomain()); err != nil {
 			return fmt.Errorf("generating local certificates: %w", err)
 		}
 		slog.Info("Local certificates generated", "ca_cert", cm.CACertPath())
@@ -208,30 +208,30 @@ func (m *Manager) Deploy(appName string, opts DeployOptions) error {
 		return fmt.Errorf("rendering templates: %w", err)
 	}
 
-	// Compute and inject ingress labels
-	var deployedIngress *DeployedIngress
-	if m.cfg.Ingress.Enabled && m.cfg.Ingress.Provider == "traefik" {
-		deployedIngress = computeIngress(m.cfg, appName, meta)
+	// Compute and inject routing labels
+	var deployedRouting *DeployedRouting
+	if m.cfg.Routing.Enabled && m.cfg.Routing.Provider == "traefik" {
+		deployedRouting = computeRouting(m.cfg, appName, meta)
 
-		if deployedIngress.Enabled {
-			labeler := NewIngressLabeler(m.cfg)
+		if deployedRouting.Enabled {
+			labeler := NewRoutingLabeler(m.cfg)
 			if compose, ok := rendered["docker-compose.yml"]; ok {
-				modified, err := labeler.InjectLabels(compose, appName, deployedIngress)
+				modified, err := labeler.InjectLabels(compose, appName, deployedRouting)
 				if err != nil {
-					slog.Warn("Failed to inject ingress labels", "app", appName, "error", err)
+					slog.Warn("Failed to inject routing labels", "app", appName, "error", err)
 				} else {
 					rendered["docker-compose.yml"] = modified
 				}
 			}
 
-			// Add ingress values for use in templates/post-deploy info
-			if len(deployedIngress.Domains) > 0 {
+			// Add routing values for use in templates/post-deploy info
+			if len(deployedRouting.Domains) > 0 {
 				scheme := "http"
-				if m.cfg.Ingress.HTTPS.Enabled {
+				if m.cfg.Routing.HTTPS.Enabled {
 					scheme = "https"
 				}
-				mergedValues["ingress_domain"] = deployedIngress.Domains[0]
-				mergedValues["ingress_url"] = fmt.Sprintf("%s://%s", scheme, deployedIngress.Domains[0])
+				mergedValues["routing_domain"] = deployedRouting.Domains[0]
+				mergedValues["routing_url"] = fmt.Sprintf("%s://%s", scheme, deployedRouting.Domains[0])
 			}
 		}
 	}
@@ -304,13 +304,13 @@ func (m *Manager) Deploy(appName string, opts DeployOptions) error {
 		Values:     mergedValues,
 		DeployedAt: time.Now(),
 		Version:    meta.Version,
-		Ingress:    deployedIngress,
+		Routing:    deployedRouting,
 	}
-	infoData, err := json.MarshalIndent(deployed, "", "  ")
+	infoData, err := yaml.Marshal(deployed)
 	if err != nil {
 		return fmt.Errorf("serializing deploy info: %w", err)
 	}
-	if err := os.WriteFile(filepath.Join(appDir, ".homelabctl.json"), infoData, 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(appDir, ".homelabctl.yaml"), infoData, 0o600); err != nil {
 		return fmt.Errorf("writing deploy info: %w", err)
 	}
 
@@ -350,14 +350,14 @@ func (m *Manager) Deploy(appName string, opts DeployOptions) error {
 	}
 	fmt.Printf("  %-20s %s\n", "Data:", m.cfg.DataPath(appName))
 
-	// Show ingress URLs
-	if deployed.Ingress != nil && deployed.Ingress.Enabled && len(deployed.Ingress.Domains) > 0 {
+	// Show routing URLs
+	if deployed.Routing != nil && deployed.Routing.Enabled && len(deployed.Routing.Domains) > 0 {
 		scheme := "http"
-		if m.cfg.Ingress.HTTPS.Enabled {
+		if m.cfg.Routing.HTTPS.Enabled {
 			scheme = "https"
 		}
-		for _, d := range deployed.Ingress.Domains {
-			fmt.Printf("  %-20s %s://%s\n", "Ingress:", scheme, d)
+		for _, d := range deployed.Routing.Domains {
+			fmt.Printf("  %-20s %s://%s\n", "URL:", scheme, d)
 		}
 	}
 
@@ -375,7 +375,7 @@ func (m *Manager) Deploy(appName string, opts DeployOptions) error {
 
 	// Invoke deploy callback (e.g. for Avahi CNAME publishing)
 	if m.OnDeploy != nil {
-		m.OnDeploy(appName, deployed.Ingress)
+		m.OnDeploy(appName, deployed.Routing)
 	}
 
 	return nil
@@ -550,7 +550,7 @@ func (m *Manager) ListDeployed() ([]string, error) {
 		if !entry.IsDir() {
 			continue
 		}
-		infoPath := filepath.Join(m.cfg.AppsDir, entry.Name(), ".homelabctl.json")
+		infoPath := filepath.Join(m.cfg.AppsDir, entry.Name(), ".homelabctl.yaml")
 		if _, err := os.Stat(infoPath); err == nil {
 			apps = append(apps, entry.Name())
 		}
@@ -560,13 +560,13 @@ func (m *Manager) ListDeployed() ([]string, error) {
 
 // GetDeployedInfo reads the deployment info for an app.
 func (m *Manager) GetDeployedInfo(appName string) (*DeployedApp, error) {
-	infoPath := filepath.Join(m.cfg.AppDir(appName), ".homelabctl.json")
+	infoPath := filepath.Join(m.cfg.AppDir(appName), ".homelabctl.yaml")
 	data, err := os.ReadFile(infoPath)
 	if err != nil {
 		return nil, fmt.Errorf("reading deploy info: %w", err)
 	}
 	var info DeployedApp
-	if err := json.Unmarshal(data, &info); err != nil {
+	if err := yaml.Unmarshal(data, &info); err != nil {
 		return nil, fmt.Errorf("parsing deploy info: %w", err)
 	}
 	return &info, nil
@@ -574,8 +574,8 @@ func (m *Manager) GetDeployedInfo(appName string) (*DeployedApp, error) {
 
 // SaveDeployedInfo writes updated deployment info for an app.
 func (m *Manager) SaveDeployedInfo(appName string, info *DeployedApp) error {
-	infoPath := filepath.Join(m.cfg.AppDir(appName), ".homelabctl.json")
-	data, err := json.MarshalIndent(info, "", "  ")
+	infoPath := filepath.Join(m.cfg.AppDir(appName), ".homelabctl.yaml")
+	data, err := yaml.Marshal(info)
 	if err != nil {
 		return fmt.Errorf("serializing deploy info: %w", err)
 	}

@@ -305,7 +305,7 @@ func listDeployedApps(cfg *config.Config) ([]string, error) {
 		if !entry.IsDir() {
 			continue
 		}
-		infoPath := cfg.AppDir(entry.Name()) + "/.homelabctl.json"
+		infoPath := cfg.AppDir(entry.Name()) + "/.homelabctl.yaml"
 		if _, err := os.Stat(infoPath); err == nil {
 			apps = append(apps, entry.Name())
 		}

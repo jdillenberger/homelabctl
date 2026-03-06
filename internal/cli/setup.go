@@ -71,8 +71,8 @@ var setupCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "Warning: could not create directories: %v\n", err)
 		}
 
-		// Prepend traefik to selected apps when ingress is enabled
-		if cfg.Ingress.Enabled && cfg.Ingress.Provider == "traefik" {
+		// Prepend traefik to selected apps when routing is enabled
+		if cfg.Routing.Enabled && cfg.Routing.Provider == "traefik" {
 			hasTraefik := false
 			for _, a := range selectedApps {
 				if a == "traefik" {

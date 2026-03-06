@@ -18,7 +18,7 @@
     <div class="app-card">
         <div style="display:flex; align-items:center; justify-content:space-between;">
             <h4 style="margin:0;">
-                {{if .IngressURL}}<a href="{{.IngressURL}}" target="_blank" rel="noopener">{{.Name}}</a>
+                {{if .RoutingURL}}<a href="{{.RoutingURL}}" target="_blank" rel="noopener">{{.Name}}</a>
                 {{else if .AccessURL}}<a href="{{.AccessURL}}" target="_blank" rel="noopener">{{.Name}}</a>
                 {{else}}<a href="/apps/{{.Name}}">{{.Name}}</a>{{end}}
             </h4>
@@ -29,8 +29,8 @@
         {{if .Description}}<p style="margin:0.5rem 0 0.25rem;"><small>{{.Description}}</small></p>{{end}}
         <p style="margin:0;">
             {{if .Version}}<small>v{{.Version}}</small>{{end}}
-            {{if .IngressURL}}<small> &mdash; <a href="{{.IngressURL}}" target="_blank" rel="noopener">{{.IngressURL}}</a></small>{{end}}
-            {{if and .AccessURL (ne .AccessURL .IngressURL)}}<small> &mdash; <a href="{{.AccessURL}}" target="_blank" rel="noopener">{{.AccessURL}}</a></small>{{end}}
+            {{if .RoutingURL}}<small> &mdash; <a href="{{.RoutingURL}}" target="_blank" rel="noopener">{{.RoutingURL}}</a></small>{{end}}
+            {{if and .AccessURL (ne .AccessURL .RoutingURL)}}<small> &mdash; <a href="{{.AccessURL}}" target="_blank" rel="noopener">{{.AccessURL}}</a></small>{{end}}
         </p>
     </div>
     {{end}}

@@ -116,7 +116,7 @@ func CheckAll() []CheckResult {
 }
 
 // CheckNSSwitchMDNS checks that /etc/nsswitch.conf has mdns4 (not mdns4_minimal)
-// in the hosts line, and that /etc/mdns.allow is configured for ingress domains.
+// in the hosts line, and that /etc/mdns.allow is configured for routing domains.
 func CheckNSSwitchMDNS() CheckResult {
 	result := CheckResult{
 		Name:           "nsswitch-mdns",

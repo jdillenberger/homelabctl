@@ -23,8 +23,8 @@ func RunSetupWizard(cfg *config.Config, availableApps []string) (selectedApps []
 	backupEnabled := defaults.Backup.Enabled
 	borgRepo := defaults.Backup.BorgRepo
 	schedule := defaults.Backup.Schedule
-	ingressEnabled := defaults.Ingress.Enabled
-	ingressDomain := ""
+	routingEnabled := defaults.Routing.Enabled
+	routingDomain := ""
 	httpsEnabled := false
 	acmeEmail := ""
 	var confirmed bool
@@ -127,35 +127,35 @@ func RunSetupWizard(cfg *config.Config, availableApps []string) (selectedApps []
 		}
 	}
 
-	// Step 5: Ingress config
-	ingressForm := huh.NewForm(
+	// Step 5: Routing config
+	routingForm := huh.NewForm(
 		huh.NewGroup(
 			huh.NewConfirm().
 				Title("Enable reverse proxy?").
 				Description("Automatically expose apps at subdomain.domain via Traefik.").
-				Value(&ingressEnabled),
+				Value(&routingEnabled),
 		),
 	)
-	if err := ingressForm.Run(); err != nil {
+	if err := routingForm.Run(); err != nil {
 		return nil, fmt.Errorf("setup wizard cancelled: %w", err)
 	}
 
-	if ingressEnabled {
+	if routingEnabled {
 		defaultDomain := hostname + "." + domain
-		ingressDomain = defaultDomain
-		ingressDetailForm := huh.NewForm(
+		routingDomain = defaultDomain
+		routingDetailForm := huh.NewForm(
 			huh.NewGroup(
 				huh.NewInput().
 					Title("Base domain for apps").
 					Description("Apps will be available at <app>.<domain>.").
-					Value(&ingressDomain),
+					Value(&routingDomain),
 				huh.NewConfirm().
 					Title("Enable HTTPS?").
 					Description("Automatic local CA certificates for .local domains.\nOptionally add Let's Encrypt for external domains.").
 					Value(&httpsEnabled),
 			),
 		)
-		if err := ingressDetailForm.Run(); err != nil {
+		if err := routingDetailForm.Run(); err != nil {
 			return nil, fmt.Errorf("setup wizard cancelled: %w", err)
 		}
 
@@ -176,13 +176,13 @@ func RunSetupWizard(cfg *config.Config, availableApps []string) (selectedApps []
 
 	// Step 6: Summary and confirmation
 	summary := fmt.Sprintf(
-		"Hostname:    %s\nApps dir:    %s\nData dir:    %s\nDomain:      %s\nWeb port:    %d\nBackup:      %v\nIngress:     %v\n",
-		hostname, appsDir, dataDir, domain, webPort, backupEnabled, ingressEnabled,
+		"Hostname:    %s\nApps dir:    %s\nData dir:    %s\nDomain:      %s\nWeb port:    %d\nBackup:      %v\nRouting:     %v\n",
+		hostname, appsDir, dataDir, domain, webPort, backupEnabled, routingEnabled,
 	)
 	if backupEnabled {
 		summary += fmt.Sprintf("Borg repo:   %s\nSchedule:    %s\n", borgRepo, schedule)
 	}
-	if ingressEnabled {
+	if routingEnabled {
 		httpsStr := "no"
 		if httpsEnabled {
 			httpsStr = "yes"
@@ -190,7 +190,7 @@ func RunSetupWizard(cfg *config.Config, availableApps []string) (selectedApps []
 				httpsStr += " (ACME: " + acmeEmail + ")"
 			}
 		}
-		summary += fmt.Sprintf("Ingress domain: %s\nHTTPS:          %s\n", ingressDomain, httpsStr)
+		summary += fmt.Sprintf("Routing domain: %s\nHTTPS:          %s\n", routingDomain, httpsStr)
 	}
 	if len(selectedApps) > 0 {
 		summary += fmt.Sprintf("Apps:        %s\n", strings.Join(selectedApps, ", "))
@@ -225,12 +225,12 @@ func RunSetupWizard(cfg *config.Config, availableApps []string) (selectedApps []
 		cfg.Backup.BorgRepo = borgRepo
 		cfg.Backup.Schedule = schedule
 	}
-	cfg.Ingress.Enabled = ingressEnabled
-	if ingressEnabled {
-		cfg.Ingress.Provider = "traefik"
-		cfg.Ingress.Domain = ingressDomain
-		cfg.Ingress.HTTPS.Enabled = httpsEnabled
-		cfg.Ingress.HTTPS.AcmeEmail = acmeEmail
+	cfg.Routing.Enabled = routingEnabled
+	if routingEnabled {
+		cfg.Routing.Provider = "traefik"
+		cfg.Routing.Domain = routingDomain
+		cfg.Routing.HTTPS.Enabled = httpsEnabled
+		cfg.Routing.HTTPS.AcmeEmail = acmeEmail
 	}
 
 	return selectedApps, nil

@@ -6,16 +6,16 @@ import (
 )
 
 func TestBuildLabelsHTTPOnly(t *testing.T) {
-	l := &IngressLabeler{
+	l := &RoutingLabeler{
 		domain:       "myhost.local",
 		httpsEnabled: false,
 	}
-	ingress := &DeployedIngress{
+	routing := &DeployedRouting{
 		Domains:       []string{"app.myhost.local"},
 		ContainerPort: 8080,
 	}
 
-	labels := l.buildLabels("myapp", ingress)
+	labels := l.buildLabels("myapp", routing)
 
 	assertLabel(t, labels, "traefik.enable", "true")
 	assertLabel(t, labels, "traefik.http.routers.myapp.entrypoints", "web")
@@ -31,17 +31,17 @@ func TestBuildLabelsHTTPOnly(t *testing.T) {
 }
 
 func TestBuildLabelsHTTPSLocalOnly(t *testing.T) {
-	l := &IngressLabeler{
+	l := &RoutingLabeler{
 		domain:       "myhost.local",
 		httpsEnabled: true,
 		acmeEmail:    "",
 	}
-	ingress := &DeployedIngress{
+	routing := &DeployedRouting{
 		Domains:       []string{"app.myhost.local"},
 		ContainerPort: 8080,
 	}
 
-	labels := l.buildLabels("myapp", ingress)
+	labels := l.buildLabels("myapp", routing)
 
 	// HTTP router with redirect
 	assertLabel(t, labels, "traefik.http.routers.myapp.middlewares", "myapp-redirect")
@@ -61,17 +61,17 @@ func TestBuildLabelsHTTPSLocalOnly(t *testing.T) {
 }
 
 func TestBuildLabelsHTTPSExternalWithACME(t *testing.T) {
-	l := &IngressLabeler{
+	l := &RoutingLabeler{
 		domain:       "example.com",
 		httpsEnabled: true,
 		acmeEmail:    "user@example.com",
 	}
-	ingress := &DeployedIngress{
+	routing := &DeployedRouting{
 		Domains:       []string{"app.example.com"},
 		ContainerPort: 3000,
 	}
 
-	labels := l.buildLabels("myapp", ingress)
+	labels := l.buildLabels("myapp", routing)
 
 	// Single secure router (all external) — with certresolver
 	assertLabel(t, labels, "traefik.http.routers.myapp-secure.tls", "true")
@@ -79,17 +79,17 @@ func TestBuildLabelsHTTPSExternalWithACME(t *testing.T) {
 }
 
 func TestBuildLabelsHTTPSExternalWithoutACME(t *testing.T) {
-	l := &IngressLabeler{
+	l := &RoutingLabeler{
 		domain:       "example.com",
 		httpsEnabled: true,
 		acmeEmail:    "",
 	}
-	ingress := &DeployedIngress{
+	routing := &DeployedRouting{
 		Domains:       []string{"app.example.com"},
 		ContainerPort: 3000,
 	}
 
-	labels := l.buildLabels("myapp", ingress)
+	labels := l.buildLabels("myapp", routing)
 
 	// Secure router without certresolver (fallback to file provider)
 	assertLabel(t, labels, "traefik.http.routers.myapp-secure.tls", "true")
@@ -101,17 +101,17 @@ func TestBuildLabelsHTTPSExternalWithoutACME(t *testing.T) {
 }
 
 func TestBuildLabelsMixedDomains(t *testing.T) {
-	l := &IngressLabeler{
+	l := &RoutingLabeler{
 		domain:       "myhost.local",
 		httpsEnabled: true,
 		acmeEmail:    "user@example.com",
 	}
-	ingress := &DeployedIngress{
+	routing := &DeployedRouting{
 		Domains:       []string{"app.myhost.local", "app.example.com"},
 		ContainerPort: 8080,
 	}
 
-	labels := l.buildLabels("myapp", ingress)
+	labels := l.buildLabels("myapp", routing)
 
 	// Should have separate routers for local and external
 	assertLabel(t, labels, "traefik.http.routers.myapp-local-secure.tls", "true")
