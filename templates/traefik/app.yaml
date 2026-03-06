@@ -56,7 +56,7 @@ health_check:
   url: "http://localhost:{{.dashboard_port}}/ping"
   interval: 30s
 routing:
-  enabled: false
+  container_port: 8080
 requirements:
   min_ram: 64M
   arch: [amd64, arm64]

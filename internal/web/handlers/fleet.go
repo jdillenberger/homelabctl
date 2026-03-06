@@ -11,6 +11,7 @@ import (
 
 // FleetPageData holds data for the fleet template.
 type FleetPageData struct {
+	BasePage
 	FleetName    string
 	DomainSuffix string
 	Hosts        []config.FleetHost
@@ -24,6 +25,7 @@ func (h *Handler) HandleFleetPage(c echo.Context) error {
 	}
 
 	data := FleetPageData{
+		BasePage:     h.basePage(),
 		FleetName:    fleetCfg.Fleet.Name,
 		DomainSuffix: fleetCfg.Defaults.DomainSuffix,
 		Hosts:        fleetCfg.Hosts,

@@ -11,6 +11,7 @@ import (
 
 // AppsListData holds data for the apps list template.
 type AppsListData struct {
+	BasePage
 	DeployedApps []*app.DeployedApp
 	Templates    []*app.AppMeta
 	DeployedSet  map[string]bool
@@ -18,6 +19,7 @@ type AppsListData struct {
 
 // AppDetailData holds data for the app detail template.
 type AppDetailData struct {
+	BasePage
 	App    *app.DeployedApp
 	Status string
 }
@@ -37,6 +39,7 @@ func (h *Handler) AppsList(c echo.Context) error {
 	}
 
 	data := AppsListData{
+		BasePage:     h.basePage(),
 		DeployedApps: apps,
 		Templates:    h.manager.Registry().All(),
 		DeployedSet:  deployedSet,
@@ -57,8 +60,9 @@ func (h *Handler) AppDetail(c echo.Context) error {
 	status, _ := h.manager.Status(name)
 
 	data := AppDetailData{
-		App:    info,
-		Status: status,
+		BasePage: h.basePage(),
+		App:      info,
+		Status:   status,
 	}
 
 	return c.Render(http.StatusOK, "app_detail.html", data)

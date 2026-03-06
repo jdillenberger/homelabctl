@@ -8,6 +8,12 @@ import (
 	"github.com/jdillenberger/homelabctl/internal/exec"
 )
 
+// BasePage holds common template data shared across all pages.
+type BasePage struct {
+	Hostname string
+	Domain   string
+}
+
 // Handler holds shared dependencies for all route handlers.
 type Handler struct {
 	cfg     *config.Config
@@ -24,6 +30,10 @@ func New(cfg *config.Config, manager *app.Manager, runner *exec.Runner) *Handler
 		runner:  runner,
 		compose: app.NewCompose(runner, cfg.Docker.ComposeCommand),
 	}
+}
+
+func (h *Handler) basePage() BasePage {
+	return BasePage{Hostname: h.cfg.Hostname, Domain: h.cfg.Network.Domain}
 }
 
 // Register registers all routes on the Echo instance.

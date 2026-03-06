@@ -20,9 +20,7 @@ services:
       - "--providers.docker.network={{index . "network"}}"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
-{{- if eq (index . "https_enabled") "true"}}
-      - "--providers.file.directory=/certs/dynamic"
-{{- end}}
+      - "--providers.file.directory=/dynamic"
 {{- if ne (index . "acme_email") ""}}
       - "--certificatesresolvers.letsencrypt.acme.email={{index . "acme_email"}}"
       - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
@@ -39,9 +37,12 @@ services:
         limits:
           memory: 256M
           pids: 200
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - {{index . "data_dir"}}/letsencrypt:/letsencrypt
+      - {{index . "data_dir"}}/dynamic:/dynamic:ro
 {{- if eq (index . "https_enabled") "true"}}
       - {{index . "certs_dir"}}:/certs:ro
 {{- end}}

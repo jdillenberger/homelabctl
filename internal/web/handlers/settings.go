@@ -11,10 +11,10 @@ import (
 
 // SettingsPageData holds data for the settings template.
 type SettingsPageData struct {
-	Hostname string
-	Version  string
-	Uptime   string
-	Config   *config.Config
+	BasePage
+	Version string
+	Uptime  string
+	Config  *config.Config
 }
 
 // HandleSettingsPage renders the settings page.
@@ -22,7 +22,7 @@ func (h *Handler) HandleSettingsPage(c echo.Context) error {
 	stats := collectStats()
 
 	data := SettingsPageData{
-		Hostname: h.cfg.Hostname,
+		BasePage: h.basePage(),
 		Version:  runtime.Version(),
 		Uptime:   stats.Uptime,
 		Config:   h.cfg,

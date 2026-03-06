@@ -10,6 +10,7 @@ import (
 
 // AlertsPageData holds data for the alerts template.
 type AlertsPageData struct {
+	BasePage
 	Rules   []alert.Rule
 	History []alert.Alert
 }
@@ -34,8 +35,9 @@ func (h *Handler) HandleAlertsPage(c echo.Context) error {
 	}
 
 	return c.Render(http.StatusOK, "alerts.html", AlertsPageData{
-		Rules:   rules,
-		History: history,
+		BasePage: h.basePage(),
+		Rules:    rules,
+		History:  history,
 	})
 }
 

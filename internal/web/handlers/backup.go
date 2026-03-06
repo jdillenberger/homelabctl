@@ -16,6 +16,7 @@ import (
 
 // BackupPageData holds data for the backup template.
 type BackupPageData struct {
+	BasePage
 	Enabled   bool
 	BorgRepo  string
 	Schedule  string
@@ -36,6 +37,7 @@ func (h *Handler) HandleBackupPage(c echo.Context) error {
 	}
 
 	data := BackupPageData{
+		BasePage:  h.basePage(),
 		Enabled:   h.cfg.Backup.Enabled,
 		BorgRepo:  h.cfg.Backup.BorgRepo,
 		Schedule:  h.cfg.Backup.Schedule,

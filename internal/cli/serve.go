@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -104,25 +105,78 @@ var serveCmd = &cobra.Command{
 				}
 				defer avahiMgr.Shutdown()
 
-				// Wire Manager callbacks for dynamic CNAME management
-				mgr.OnDeploy = func(appName string, routing *app.DeployedRouting) {
-					if routing == nil || !routing.Enabled {
-						return
+				// reconcileApp reconciles CNAMEs for an app: unpublishes stale
+				// entries and publishes new ones. Pass nil routing to remove all.
+				// A per-app mutex prevents concurrent reconciles for the same app
+				// (e.g. OnDeploy callback + watcher firing in quick succession).
+				var reconcileMu sync.Mutex
+				reconcileApp := func(appName string, routing *app.DeployedRouting) {
+					reconcileMu.Lock()
+					defer reconcileMu.Unlock()
+
+					desired := make(map[string]bool)
+					if routing != nil && routing.Enabled {
+						for _, d := range routing.Domains {
+							if strings.HasSuffix(d, ".local") {
+								desired[d] = true
+							}
+						}
 					}
-					for _, d := range routing.Domains {
-						if strings.HasSuffix(d, ".local") {
-							if err := avahiMgr.PublishCNAME(appName+":"+d, d); err != nil {
+
+					// Snapshot published state once for consistent view.
+					published := avahiMgr.ListPublished()
+
+					// Unpublish stale CNAMEs for this app.
+					for key := range published {
+						if !strings.HasPrefix(key, appName+":") {
+							continue
+						}
+						domain := strings.TrimPrefix(key, appName+":")
+						if !desired[domain] {
+							_ = avahiMgr.UnpublishCNAME(key)
+						}
+					}
+
+					// Publish new CNAMEs.
+					for d := range desired {
+						key := appName + ":" + d
+						if !published[key] {
+							if err := avahiMgr.PublishCNAME(key, d); err != nil {
 								slog.Warn("Failed to publish CNAME", "domain", d, "error", err)
 							}
 						}
 					}
-				}
-				mgr.OnRemove = func(appName string) {
-					for key := range avahiMgr.ListPublished() {
-						if strings.HasPrefix(key, appName+":") {
-							_ = avahiMgr.UnpublishCNAME(key)
+
+					// Regenerate dashboard route when traefik changes.
+					if appName == "traefik" && cfg.Routing.Enabled {
+						if err := app.GenerateDashboardRoute(cfg); err != nil {
+							slog.Warn("Failed to regenerate dashboard route", "error", err)
 						}
 					}
+				}
+
+				// Wire Manager callbacks for dynamic CNAME management
+				mgr.OnDeploy = func(appName string, routing *app.DeployedRouting) {
+					reconcileApp(appName, routing)
+				}
+				mgr.OnRemove = func(appName string) {
+					reconcileApp(appName, nil)
+				}
+
+				// Start filesystem watcher for live CNAME reconciliation
+				deployWatcher, watchErr := app.NewDeployWatcher(cfg.AppsDir, func(appName string, info *app.DeployedApp) {
+					var routing *app.DeployedRouting
+					if info != nil {
+						routing = info.Routing
+					}
+					reconcileApp(appName, routing)
+				})
+				if watchErr != nil {
+					slog.Warn("Failed to start deploy watcher", "error", watchErr)
+				} else {
+					deployWatcher.Start()
+					defer deployWatcher.Stop()
+					slog.Info("Deploy watcher started", "dir", cfg.AppsDir)
 				}
 			}
 		}

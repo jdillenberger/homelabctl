@@ -22,6 +22,7 @@ type PortalApp struct {
 	Health      string // "healthy", "unhealthy", "unknown"
 	AccessURL   string
 	RoutingURL  string
+	DisplayURL  string // protocol-stripped URL for display (prefers RoutingURL)
 }
 
 // FleetPeer represents a discovered peer server.
@@ -35,8 +36,7 @@ type FleetPeer struct {
 
 // DashboardData holds data for the dashboard template.
 type DashboardData struct {
-	Hostname  string
-	Domain    string
+	BasePage
 	Stats     SystemStats
 	Apps      []PortalApp
 	Peers     []FleetPeer
@@ -104,6 +104,13 @@ func (h *Handler) Dashboard(c echo.Context) error {
 			pa.RoutingURL = fmt.Sprintf("%s://%s", scheme, info.Routing.Domains[0])
 		}
 
+		// Set display URL: prefer routing URL, fall back to access URL, strip protocol
+		if pa.RoutingURL != "" {
+			pa.DisplayURL = strings.TrimPrefix(strings.TrimPrefix(pa.RoutingURL, "https://"), "http://")
+		} else if pa.AccessURL != "" {
+			pa.DisplayURL = strings.TrimPrefix(strings.TrimPrefix(pa.AccessURL, "https://"), "http://")
+		}
+
 		portalApps = append(portalApps, pa)
 	}
 
@@ -113,6 +120,9 @@ func (h *Handler) Dashboard(c echo.Context) error {
 		hosts, err := mdns.Discover(2 * time.Second)
 		if err == nil {
 			for _, host := range hosts {
+				if host.Hostname == h.cfg.Hostname {
+					continue
+				}
 				peers = append(peers, FleetPeer{
 					Hostname: host.Hostname,
 					Address:  host.Address,
@@ -157,8 +167,7 @@ func (h *Handler) Dashboard(c echo.Context) error {
 	}
 
 	data := DashboardData{
-		Hostname:  h.cfg.Hostname,
-		Domain:    h.cfg.Network.Domain,
+		BasePage:  h.basePage(),
 		Stats:     stats,
 		Apps:      portalApps,
 		Peers:     peers,
