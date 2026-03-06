@@ -1,0 +1,42 @@
+name: searxng
+description: Privacy-respecting, hackable metasearch engine
+category: productivity
+version: "latest"
+ports:
+  - host: 8888
+    container: 8080
+    protocol: tcp
+    description: Web UI
+    value_name: web_port
+values:
+  - name: web_port
+    description: Web UI port
+    default: "8888"
+  - name: timezone
+    description: Timezone
+    default: "UTC"
+  - name: secret_key
+    description: Secret key for SearXNG
+    secret: true
+    auto_gen: password
+dependencies:
+  - docker
+volumes:
+  - name: config
+    container: /etc/searxng
+    description: SearXNG configuration files
+  - name: cache
+    container: /var/cache/searxng
+    description: Persistent cache data
+  - name: valkey
+    container: /data
+    description: Valkey data
+health_check:
+  url: "http://localhost:{{.web_port}}/healthz"
+  interval: 30s
+backup:
+  paths:
+    - config
+requirements:
+  min_ram: 512M
+  arch: [amd64, arm64]

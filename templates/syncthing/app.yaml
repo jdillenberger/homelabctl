@@ -18,6 +18,11 @@ ports:
     protocol: udp
     description: Sync (QUIC)
     value_name: sync_port
+  - host: 21027
+    container: 21027
+    protocol: udp
+    description: Discovery broadcasts
+    value_name: discovery_port
 values:
   - name: web_port
     description: Web UI port

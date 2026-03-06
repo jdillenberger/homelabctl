@@ -4,16 +4,16 @@ services:
     container_name: audiobookshelf
     restart: unless-stopped
     ports:
-      - "{{index . "web_port"}}:80"
+      - "{{index . "web_port"}}:13378"
     environment:
       - TZ={{index . "timezone"}}
     volumes:
-      - {{index . "audiobooks_path"}}:/audiobooks
-      - {{index . "podcasts_path"}}:/podcasts
+      - {{if index . "audiobooks_path"}}{{index . "audiobooks_path"}}{{else}}{{index . "data_dir"}}/audiobooks{{end}}:/audiobooks
+      - {{if index . "podcasts_path"}}{{index . "podcasts_path"}}{{else}}{{index . "data_dir"}}/podcasts{{end}}:/podcasts
       - {{index . "data_dir"}}/config:/config
       - {{index . "data_dir"}}/metadata:/metadata
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:80/healthcheck || exit 1"]
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:13378/ping || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

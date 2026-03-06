@@ -1,0 +1,84 @@
+services:
+  forgejo:
+    image: codeberg.org/forgejo/forgejo:10
+    container_name: forgejo
+    restart: unless-stopped
+    ports:
+      - "{{index . "web_port"}}:3000"
+      - "{{index . "ssh_port"}}:22"
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+      - FORGEJO__database__DB_TYPE=postgres
+      - FORGEJO__database__HOST=forgejo-db:5432
+      - FORGEJO__database__NAME=forgejo
+      - FORGEJO__database__USER=forgejo
+      - FORGEJO__database__PASSWD={{index . "db_password"}}
+      - FORGEJO__server__ROOT_URL=https://{{index . "hostname"}}.{{index . "domain"}}
+      - FORGEJO__server__DOMAIN={{index . "hostname"}}.{{index . "domain"}}
+      - FORGEJO__server__SSH_PORT={{index . "ssh_port"}}
+      - FORGEJO__server__SSH_DOMAIN={{index . "hostname"}}.{{index . "domain"}}
+      - FORGEJO__security__SECRET_KEY={{index . "secret_key"}}
+      - TZ={{index . "timezone"}}
+    volumes:
+      - {{index . "data_dir"}}/data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          pids: 200
+    depends_on:
+      forgejo-db:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - {{index . "network"}}
+
+  forgejo-db:
+    image: postgres:16-alpine
+    container_name: forgejo-db
+    restart: unless-stopped
+    shm_size: '256m'
+    environment:
+      - POSTGRES_DB=forgejo
+      - POSTGRES_USER=forgejo
+      - POSTGRES_PASSWORD={{index . "db_password"}}
+      - TZ={{index . "timezone"}}
+    volumes:
+      - {{index . "data_dir"}}/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U forgejo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          pids: 100
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - {{index . "network"}}
+
+networks:
+  {{index . "network"}}:
+    external: true

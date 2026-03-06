@@ -1,23 +1,18 @@
 services:
-  bookstack:
-    image: lscr.io/linuxserver/bookstack:25.02
-    container_name: bookstack
+  wordpress:
+    image: wordpress:6.7
+    container_name: wordpress
     restart: unless-stopped
     ports:
       - "{{index . "web_port"}}:80"
     environment:
-      - PUID=1000
-      - PGID=1000
       - TZ={{index . "timezone"}}
-      - APP_URL={{index . "app_url"}}
-      - DB_HOST=bookstack-db
-      - DB_DATABASE=bookstack
-      - DB_USER=bookstack
-      - DB_PASS={{index . "db_password"}}
-    volumes:
-      - {{index . "data_dir"}}/config:/config
+      - WORDPRESS_DB_HOST=wordpress-db
+      - WORDPRESS_DB_USER=wordpress
+      - WORDPRESS_DB_PASSWORD={{index . "db_password"}}
+      - WORDPRESS_DB_NAME=wordpress
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:80/ || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:80/wp-login.php || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -27,8 +22,10 @@ services:
         limits:
           memory: 512M
           pids: 200
+    volumes:
+      - {{index . "data_dir"}}/html:/var/www/html
     depends_on:
-      bookstack-db:
+      wordpress-db:
         condition: service_healthy
     security_opt:
       - no-new-privileges:true
@@ -40,17 +37,22 @@ services:
     networks:
       - {{index . "network"}}
 
-  bookstack-db:
+  wordpress-db:
     image: mariadb:11.4
-    container_name: bookstack-db
+    container_name: wordpress-db
     restart: unless-stopped
     shm_size: '256m'
     environment:
       - TZ={{index . "timezone"}}
       - MYSQL_ROOT_PASSWORD={{index . "db_password"}}
-      - MYSQL_DATABASE=bookstack
-      - MYSQL_USER=bookstack
+      - MYSQL_DATABASE=wordpress
+      - MYSQL_USER=wordpress
       - MYSQL_PASSWORD={{index . "db_password"}}
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          pids: 100
     volumes:
       - {{index . "data_dir"}}/db:/var/lib/mysql
     healthcheck:
@@ -59,11 +61,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          pids: 100
     security_opt:
       - no-new-privileges:true
     logging:

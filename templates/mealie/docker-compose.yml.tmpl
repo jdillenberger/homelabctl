@@ -1,24 +1,25 @@
 services:
-  crowdsec:
-    image: crowdsecurity/crowdsec:v1.6.4
-    container_name: crowdsec
+  mealie:
+    image: ghcr.io/mealie-recipes/mealie:v2.6.0
+    container_name: mealie
     restart: unless-stopped
     ports:
-      - "{{index . "api_port"}}:8080"
+      - "{{index . "web_port"}}:9000"
     environment:
       - TZ={{index . "timezone"}}
-      - COLLECTIONS={{index . "collections"}}
+      - ALLOW_SIGNUP=false
+      - BASE_URL=https://{{index . "hostname"}}.{{index . "domain"}}
+      - MAX_WORKERS=1
+      - WEB_CONCURRENCY=1
     deploy:
       resources:
         limits:
           memory: 512M
           pids: 200
     volumes:
-      - {{index . "data_dir"}}/config:/etc/crowdsec
-      - {{index . "data_dir"}}/data:/var/lib/crowdsec/data
-      - /var/log:/var/log:ro
+      - {{index . "data_dir"}}/data:/app/data
     healthcheck:
-      test: ["CMD", "cscli", "version"]
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/api/app/about || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

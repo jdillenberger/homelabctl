@@ -12,6 +12,9 @@ values:
   - name: api_port
     description: CrowdSec API port
     default: "8080"
+  - name: collections
+    description: CrowdSec collections to install (space-separated)
+    default: "crowdsecurity/linux"
   - name: timezone
     description: Timezone
     default: "UTC"
@@ -25,12 +28,12 @@ volumes:
     container: /var/lib/crowdsec/data
     description: CrowdSec data
 health_check:
-  url: "http://localhost:{{.api_port}}/health"
+  url: "http://localhost:{{.api_port}}/v1/heartbeat"
   interval: 30s
 backup:
   paths:
     - config
     - data
 requirements:
-  min_ram: 256M
+  min_ram: 512M
   arch: [amd64, arm64]

@@ -1,0 +1,47 @@
+name: firefly-iii
+description: Personal finance manager and budgeting tool
+category: finance
+version: "6.2"
+ports:
+  - host: 8580
+    container: 8080
+    protocol: tcp
+    description: Web UI
+    value_name: web_port
+values:
+  - name: web_port
+    description: Web UI port
+    default: "8580"
+  - name: db_password
+    description: PostgreSQL password
+    secret: true
+    auto_gen: password
+  - name: app_key
+    description: "Laravel APP_KEY (generate with: head -c 32 /dev/urandom | base64)"
+    secret: true
+    required: true
+  - name: timezone
+    description: Timezone
+    default: "UTC"
+dependencies:
+  - docker
+volumes:
+  - name: upload
+    container: /var/www/html/storage/upload
+    description: Firefly III upload data
+  - name: db
+    container: /var/lib/postgresql/data
+    description: PostgreSQL data
+health_check:
+  url: "http://localhost:{{.web_port}}/health"
+  interval: 30s
+backup:
+  paths:
+    - upload
+    - db
+  pre_hook: "docker exec firefly-iii-db pg_dumpall -U firefly > /tmp/firefly-iii-db-backup.sql"
+  post_hook: "rm -f /tmp/firefly-iii-db-backup.sql"
+requirements:
+  min_ram: 512M
+  min_disk: 2G
+  arch: [amd64, arm64]

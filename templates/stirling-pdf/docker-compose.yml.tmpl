@@ -19,7 +19,7 @@ services:
       - {{index . "data_dir"}}/configs:/configs
       - {{index . "data_dir"}}/logs:/logs
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080 || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/v1/info/status || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

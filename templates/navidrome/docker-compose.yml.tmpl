@@ -16,7 +16,7 @@ services:
           pids: 200
     volumes:
       - {{index . "data_dir"}}/data:/data
-      - {{index . "music_path"}}:/music:ro
+      - {{if index . "music_path"}}{{index . "music_path"}}{{else}}{{index . "data_dir"}}/music{{end}}:/music:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:4533/ping || exit 1"]
       interval: 30s

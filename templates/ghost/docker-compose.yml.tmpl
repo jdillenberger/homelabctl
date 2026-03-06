@@ -1,23 +1,22 @@
 services:
-  bookstack:
-    image: lscr.io/linuxserver/bookstack:25.02
-    container_name: bookstack
+  ghost:
+    image: ghost:5
+    container_name: ghost
     restart: unless-stopped
     ports:
-      - "{{index . "web_port"}}:80"
+      - "{{index . "web_port"}}:2368"
     environment:
-      - PUID=1000
-      - PGID=1000
+      - url={{index . "url"}}
       - TZ={{index . "timezone"}}
-      - APP_URL={{index . "app_url"}}
-      - DB_HOST=bookstack-db
-      - DB_DATABASE=bookstack
-      - DB_USER=bookstack
-      - DB_PASS={{index . "db_password"}}
+      - database__client=mysql
+      - database__connection__host=ghost-db
+      - database__connection__user=ghost
+      - database__connection__password={{index . "db_password"}}
+      - database__connection__database=ghost
     volumes:
-      - {{index . "data_dir"}}/config:/config
+      - {{index . "data_dir"}}/content:/var/lib/ghost/content
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:80/ || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:2368/ghost/api/admin/site/ || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -28,7 +27,7 @@ services:
           memory: 512M
           pids: 200
     depends_on:
-      bookstack-db:
+      ghost-db:
         condition: service_healthy
     security_opt:
       - no-new-privileges:true
@@ -40,21 +39,20 @@ services:
     networks:
       - {{index . "network"}}
 
-  bookstack-db:
-    image: mariadb:11.4
-    container_name: bookstack-db
+  ghost-db:
+    image: mysql:8.0
+    container_name: ghost-db
     restart: unless-stopped
-    shm_size: '256m'
     environment:
       - TZ={{index . "timezone"}}
       - MYSQL_ROOT_PASSWORD={{index . "db_password"}}
-      - MYSQL_DATABASE=bookstack
-      - MYSQL_USER=bookstack
+      - MYSQL_DATABASE=ghost
+      - MYSQL_USER=ghost
       - MYSQL_PASSWORD={{index . "db_password"}}
     volumes:
       - {{index . "data_dir"}}/db:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
       timeout: 5s
       retries: 5

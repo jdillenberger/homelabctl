@@ -4,7 +4,7 @@ category: media
 version: "2.32.1"
 ports:
   - host: 13378
-    container: 80
+    container: 13378
     protocol: tcp
     description: Web UI
     value_name: web_port
@@ -29,7 +29,7 @@ volumes:
     container: /metadata
     description: Audiobookshelf metadata
 health_check:
-  url: "http://localhost:{{.web_port}}"
+  url: "http://localhost:{{.web_port}}/ping"
   interval: 30s
 backup:
   paths:

@@ -1,0 +1,43 @@
+name: wordpress
+description: Open-source content management system for websites and blogs
+category: web
+version: "6.7"
+ports:
+  - host: 8280
+    container: 80
+    protocol: tcp
+    description: Web UI
+    value_name: web_port
+values:
+  - name: web_port
+    description: Web UI port
+    default: "8280"
+  - name: db_password
+    description: Database root password
+    secret: true
+    auto_gen: password
+  - name: timezone
+    description: Timezone
+    default: "UTC"
+dependencies:
+  - docker
+volumes:
+  - name: html
+    container: /var/www/html
+    description: WordPress application files
+  - name: db
+    container: /var/lib/mysql
+    description: MariaDB data
+health_check:
+  url: "http://localhost:{{.web_port}}/wp-login.php"
+  interval: 60s
+backup:
+  paths:
+    - html
+    - db
+  pre_hook: "docker exec wordpress-db sh -c 'mariadb-dump -u root -p\"$MYSQL_ROOT_PASSWORD\" --all-databases' > /tmp/wordpress-db-backup.sql"
+  post_hook: "rm -f /tmp/wordpress-db-backup.sql"
+requirements:
+  min_ram: 512M
+  min_disk: 5G
+  arch: [amd64, arm64]

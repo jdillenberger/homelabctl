@@ -8,11 +8,6 @@ ports:
     protocol: tcp
     description: Grafana Web UI
     value_name: web_port
-  - host: 9090
-    container: 9090
-    protocol: tcp
-    description: Prometheus Web UI
-    value_name: prometheus_port
 values:
   - name: web_port
     description: Grafana Web UI port
@@ -21,9 +16,6 @@ values:
     description: Grafana admin password
     secret: true
     auto_gen: password
-  - name: prometheus_port
-    description: Prometheus Web UI port
-    default: "9090"
   - name: timezone
     description: Timezone
     default: "UTC"

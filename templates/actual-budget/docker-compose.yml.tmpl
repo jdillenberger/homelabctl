@@ -1,28 +1,25 @@
 services:
-  crowdsec:
-    image: crowdsecurity/crowdsec:v1.6.4
-    container_name: crowdsec
+  actual-budget:
+    image: actualbudget/actual-server:25.3.1
+    container_name: actual-budget
     restart: unless-stopped
     ports:
-      - "{{index . "api_port"}}:8080"
+      - "{{index . "web_port"}}:5006"
     environment:
       - TZ={{index . "timezone"}}
-      - COLLECTIONS={{index . "collections"}}
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 128M
           pids: 200
     volumes:
-      - {{index . "data_dir"}}/config:/etc/crowdsec
-      - {{index . "data_dir"}}/data:/var/lib/crowdsec/data
-      - /var/log:/var/log:ro
+      - {{index . "data_dir"}}/data:/data
     healthcheck:
-      test: ["CMD", "cscli", "version"]
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:5006/ || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 10s
     logging:
       driver: json-file
       options:

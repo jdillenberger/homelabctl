@@ -28,7 +28,7 @@ volumes:
     container: /logs
     description: Application logs
 health_check:
-  url: "http://localhost:{{.web_port}}"
+  url: "http://localhost:{{.web_port}}/api/v1/info/status"
   interval: 30s
 backup:
   paths:

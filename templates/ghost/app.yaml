@@ -1,0 +1,46 @@
+name: ghost
+description: Professional publishing and blogging platform
+category: web
+version: "5"
+ports:
+  - host: 2368
+    container: 2368
+    protocol: tcp
+    description: Web UI
+    value_name: web_port
+values:
+  - name: web_port
+    description: Web UI port
+    default: "2368"
+  - name: db_password
+    description: MySQL password
+    secret: true
+    auto_gen: password
+  - name: url
+    description: Site URL
+    default: "https://ghost.example.com"
+  - name: timezone
+    description: Timezone
+    default: "UTC"
+dependencies:
+  - docker
+volumes:
+  - name: content
+    container: /var/lib/ghost/content
+    description: Ghost content and themes
+  - name: db
+    container: /var/lib/mysql
+    description: MySQL data
+health_check:
+  url: "http://localhost:{{.web_port}}/ghost/api/admin/site/"
+  interval: 60s
+backup:
+  paths:
+    - content
+    - db
+  pre_hook: "docker exec ghost-db sh -c 'mysqldump -u ghost -p\"$MYSQL_PASSWORD\" ghost' > /tmp/ghost-db-backup.sql"
+  post_hook: "rm -f /tmp/ghost-db-backup.sql"
+requirements:
+  min_ram: 512M
+  min_disk: 5G
+  arch: [amd64, arm64]

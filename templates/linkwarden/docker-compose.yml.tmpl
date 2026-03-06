@@ -1,23 +1,19 @@
 services:
-  bookstack:
-    image: lscr.io/linuxserver/bookstack:25.02
-    container_name: bookstack
+  linkwarden:
+    image: ghcr.io/linkwarden/linkwarden:v2.9.3
+    container_name: linkwarden
     restart: unless-stopped
     ports:
-      - "{{index . "web_port"}}:80"
+      - "{{index . "web_port"}}:3000"
     environment:
-      - PUID=1000
-      - PGID=1000
+      - DATABASE_URL=postgresql://linkwarden:{{index . "db_password"}}@linkwarden-db:5432/linkwarden
+      - NEXTAUTH_SECRET={{index . "nextauth_secret"}}
+      - NEXTAUTH_URL=https://{{index . "hostname"}}.{{index . "domain"}}
       - TZ={{index . "timezone"}}
-      - APP_URL={{index . "app_url"}}
-      - DB_HOST=bookstack-db
-      - DB_DATABASE=bookstack
-      - DB_USER=bookstack
-      - DB_PASS={{index . "db_password"}}
     volumes:
-      - {{index . "data_dir"}}/config:/config
+      - {{index . "data_dir"}}/data:/data/data
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:80/ || exit 1"]
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/ || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -28,7 +24,7 @@ services:
           memory: 512M
           pids: 200
     depends_on:
-      bookstack-db:
+      linkwarden-db:
         condition: service_healthy
     security_opt:
       - no-new-privileges:true
@@ -40,21 +36,20 @@ services:
     networks:
       - {{index . "network"}}
 
-  bookstack-db:
-    image: mariadb:11.4
-    container_name: bookstack-db
+  linkwarden-db:
+    image: postgres:16-alpine
+    container_name: linkwarden-db
     restart: unless-stopped
     shm_size: '256m'
     environment:
+      - POSTGRES_DB=linkwarden
+      - POSTGRES_USER=linkwarden
+      - POSTGRES_PASSWORD={{index . "db_password"}}
       - TZ={{index . "timezone"}}
-      - MYSQL_ROOT_PASSWORD={{index . "db_password"}}
-      - MYSQL_DATABASE=bookstack
-      - MYSQL_USER=bookstack
-      - MYSQL_PASSWORD={{index . "db_password"}}
     volumes:
-      - {{index . "data_dir"}}/db:/var/lib/mysql
+      - {{index . "data_dir"}}/db:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      test: ["CMD-SHELL", "pg_isready -U linkwarden"]
       interval: 10s
       timeout: 5s
       retries: 5

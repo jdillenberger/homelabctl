@@ -1,6 +1,6 @@
 services:
   ntfy:
-    image: binber/ntfy:2.11.0
+    image: binwiederhier/ntfy:v2.11.0
     container_name: ntfy
     command: serve
     restart: unless-stopped
@@ -15,7 +15,7 @@ services:
           pids: 200
     volumes:
       - {{index . "data_dir"}}/cache:/var/cache/ntfy
-      - {{index . "data_dir"}}/config:/etc/ntfy
+      - ./config:/etc/ntfy
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:80/v1/health || exit 1"]
       interval: 30s

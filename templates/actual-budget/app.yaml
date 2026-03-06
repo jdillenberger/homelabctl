@@ -1,36 +1,32 @@
-name: ntfy
-description: Self-hosted push notification service
-category: infra
-version: "v2.11.0"
+name: actual-budget
+description: Privacy-focused personal budgeting app
+category: finance
+version: "25.3.1"
 ports:
-  - host: 2586
-    container: 80
+  - host: 5006
+    container: 5006
     protocol: tcp
     description: Web UI
     value_name: web_port
 values:
   - name: web_port
     description: Web UI port
-    default: "2586"
+    default: "5006"
   - name: timezone
     description: Timezone
     default: "UTC"
 dependencies:
   - docker
 volumes:
-  - name: cache
-    container: /var/cache/ntfy
-    description: Ntfy cache data
-  - name: config
-    container: /etc/ntfy
-    description: Ntfy configuration
+  - name: data
+    container: /data
+    description: Actual Budget data
 health_check:
   url: "http://localhost:{{.web_port}}"
   interval: 30s
 backup:
   paths:
-    - cache
-    - config
+    - data
 requirements:
-  min_ram: 64M
+  min_ram: 128M
   arch: [amd64, arm64]

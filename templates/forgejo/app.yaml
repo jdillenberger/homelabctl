@@ -1,0 +1,55 @@
+name: forgejo
+description: Self-hosted Git service
+category: dev
+version: "10"
+ports:
+  - host: 3300
+    container: 3000
+    protocol: tcp
+    description: Web UI
+    value_name: web_port
+  - host: 2222
+    container: 22
+    protocol: tcp
+    description: SSH
+    value_name: ssh_port
+values:
+  - name: web_port
+    description: Web UI port
+    default: "3300"
+  - name: ssh_port
+    description: SSH port
+    default: "2222"
+  - name: db_password
+    description: PostgreSQL password
+    secret: true
+    auto_gen: password
+  - name: secret_key
+    description: Forgejo secret key
+    secret: true
+    auto_gen: password
+  - name: timezone
+    description: Timezone
+    default: "UTC"
+dependencies:
+  - docker
+volumes:
+  - name: data
+    container: /data
+    description: Forgejo data
+  - name: db
+    container: /var/lib/postgresql/data
+    description: PostgreSQL data
+health_check:
+  url: "http://localhost:{{.web_port}}/api/healthz"
+  interval: 30s
+backup:
+  paths:
+    - data
+    - db
+  pre_hook: "docker exec forgejo-db pg_dumpall -U forgejo > /tmp/forgejo-db-backup.sql"
+  post_hook: "rm -f /tmp/forgejo-db-backup.sql"
+requirements:
+  min_ram: 512M
+  min_disk: 2G
+  arch: [amd64, arm64]

@@ -1,7 +1,7 @@
 name: wireguard
 description: WireGuard VPN server with web UI via wg-easy
 category: networking
-version: "15"
+version: "14"
 ports:
   - host: 51820
     container: 51820
@@ -23,10 +23,10 @@ values:
   - name: wg_host
     description: Server public IP or hostname for VPN clients
     required: true
-  - name: password
-    description: Web UI password
+  - name: password_hash
+    description: "Web UI password hash (generate with: docker run -it ghcr.io/wg-easy/wg-easy wgpw 'YOUR_PASSWORD')"
     secret: true
-    auto_gen: password
+    required: true
   - name: timezone
     description: Timezone
     default: "UTC"
@@ -43,5 +43,5 @@ backup:
   paths:
     - config
 requirements:
-  min_ram: 128M
+  min_ram: 256M
   arch: [amd64, arm64]
