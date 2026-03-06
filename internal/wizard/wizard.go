@@ -228,7 +228,12 @@ func RunSetupWizard(cfg *config.Config, availableApps []string) (selectedApps []
 	cfg.Routing.Enabled = routingEnabled
 	if routingEnabled {
 		cfg.Routing.Provider = "traefik"
-		cfg.Routing.Domain = routingDomain
+		// Only persist routing domain if user changed it from the computed default.
+		// Leaving it empty lets RoutingDomain() derive it dynamically from hostname.
+		defaultDomain := hostname + "." + domain
+		if routingDomain != defaultDomain {
+			cfg.Routing.Domain = routingDomain
+		}
 		cfg.Routing.HTTPS.Enabled = httpsEnabled
 		cfg.Routing.HTTPS.AcmeEmail = acmeEmail
 	}

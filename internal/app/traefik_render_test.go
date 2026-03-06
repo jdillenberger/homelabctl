@@ -21,8 +21,8 @@ func TestTraefikTemplateHTTPSDisabled(t *testing.T) {
 	}
 	compose := files["docker-compose.yml"]
 
-	if strings.Contains(compose, "providers.file") {
-		t.Error("HTTPS disabled should NOT have file provider")
+	if !strings.Contains(compose, "providers.file.directory=/dynamic") {
+		t.Error("should always have file provider for dynamic config")
 	}
 	if strings.Contains(compose, "/certs") {
 		t.Error("HTTPS disabled should NOT mount certs volume")
@@ -45,8 +45,8 @@ func TestTraefikTemplateHTTPSNoACME(t *testing.T) {
 	}
 	compose := files["docker-compose.yml"]
 
-	if !strings.Contains(compose, "providers.file.directory=/certs/dynamic") {
-		t.Error("HTTPS enabled should have file provider")
+	if !strings.Contains(compose, "providers.file.directory=/dynamic") {
+		t.Error("should have file provider")
 	}
 	if !strings.Contains(compose, "/certs:ro") {
 		t.Error("HTTPS enabled should mount certs volume")
@@ -70,7 +70,7 @@ func TestTraefikTemplateHTTPSWithACME(t *testing.T) {
 	}
 	compose := files["docker-compose.yml"]
 
-	if !strings.Contains(compose, "providers.file.directory=/certs/dynamic") {
+	if !strings.Contains(compose, "providers.file.directory=/dynamic") {
 		t.Error("should have file provider")
 	}
 	if !strings.Contains(compose, "certificatesresolvers.letsencrypt.acme.email=user@example.com") {

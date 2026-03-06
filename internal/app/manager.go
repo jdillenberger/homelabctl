@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"text/template"
@@ -185,6 +186,7 @@ func (m *Manager) Deploy(appName string, opts DeployOptions) error {
 	mergedValues["data_dir"] = m.cfg.DataPath(appName)
 	mergedValues["app_name"] = appName
 	mergedValues["network"] = m.cfg.Docker.DefaultNetwork
+	mergedValues["web_port"] = strconv.Itoa(m.cfg.Network.WebPort)
 
 	// Auto-populate HTTPS values for traefik
 	if appName == "traefik" && m.cfg.Routing.HTTPS.Enabled {
@@ -200,6 +202,13 @@ func (m *Manager) Deploy(appName string, opts DeployOptions) error {
 			return fmt.Errorf("generating local certificates: %w", err)
 		}
 		slog.Info("Local certificates generated", "ca_cert", cm.CACertPath())
+	}
+
+	// Generate dashboard route for the homelabctl web UI
+	if appName == "traefik" && m.cfg.Routing.Enabled {
+		if err := GenerateDashboardRoute(m.cfg); err != nil {
+			slog.Warn("Failed to generate dashboard route", "error", err)
+		}
 	}
 
 	// Render templates
@@ -621,6 +630,59 @@ func renderTemplate(tmplStr string, values map[string]string) (string, error) {
 		return tmplStr, err
 	}
 	return buf.String(), nil
+}
+
+// GenerateDashboardRoute writes a traefik file-provider config that routes
+// the bare routing domain to the homelabctl web dashboard on the host.
+func GenerateDashboardRoute(cfg *config.Config) error {
+	dynamicDir := filepath.Join(cfg.DataPath("traefik"), "dynamic")
+	if err := os.MkdirAll(dynamicDir, 0o755); err != nil {
+		return fmt.Errorf("creating dynamic directory: %w", err)
+	}
+
+	routingDomain := cfg.RoutingDomain()
+	webPort := cfg.Network.WebPort
+
+	hostRule := "`" + routingDomain + "`"
+
+	var yml string
+	if cfg.Routing.HTTPS.Enabled {
+		yml = fmt.Sprintf(`http:
+  routers:
+    dashboard:
+      rule: "Host(%[1]s)"
+      service: dashboard
+      entryPoints:
+        - web
+    dashboard-secure:
+      rule: "Host(%[1]s)"
+      service: dashboard
+      entryPoints:
+        - websecure
+      tls: {}
+  services:
+    dashboard:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:%[2]d"
+`, hostRule, webPort)
+	} else {
+		yml = fmt.Sprintf(`http:
+  routers:
+    dashboard:
+      rule: "Host(%[1]s)"
+      service: dashboard
+      entryPoints:
+        - web
+  services:
+    dashboard:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:%[2]d"
+`, hostRule, webPort)
+	}
+
+	return os.WriteFile(filepath.Join(dynamicDir, "dashboard.yml"), []byte(yml), 0o644)
 }
 
 // executeHooks runs lifecycle hooks, logging errors but not failing the deploy.

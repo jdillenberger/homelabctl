@@ -16,13 +16,16 @@ import (
 
 // CertManager generates and manages local CA and wildcard certificates.
 type CertManager struct {
-	certsDir string
+	certsDir   string
+	dynamicDir string
 }
 
-// NewCertManager creates a new CertManager that stores certs in {dataDir}/certs.
+// NewCertManager creates a new CertManager that stores certs in {dataDir}/certs
+// and dynamic traefik config in {dataDir}/dynamic.
 func NewCertManager(dataDir string) *CertManager {
 	return &CertManager{
-		certsDir: filepath.Join(dataDir, "certs"),
+		certsDir:   filepath.Join(dataDir, "certs"),
+		dynamicDir: filepath.Join(dataDir, "dynamic"),
 	}
 }
 
@@ -37,8 +40,7 @@ func (cm *CertManager) EnsureCerts(domain string) error {
 	if err := os.MkdirAll(cm.certsDir, 0o755); err != nil {
 		return fmt.Errorf("creating certs directory: %w", err)
 	}
-	dynamicDir := filepath.Join(cm.certsDir, "dynamic")
-	if err := os.MkdirAll(dynamicDir, 0o755); err != nil {
+	if err := os.MkdirAll(cm.dynamicDir, 0o755); err != nil {
 		return fmt.Errorf("creating dynamic directory: %w", err)
 	}
 
@@ -73,7 +75,7 @@ func (cm *CertManager) EnsureCerts(domain string) error {
     - certFile: /certs/wildcard.crt
       keyFile: /certs/wildcard.key
 `
-	if err := os.WriteFile(filepath.Join(dynamicDir, "tls.yml"), []byte(tlsYml), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(cm.dynamicDir, "tls.yml"), []byte(tlsYml), 0o600); err != nil {
 		return fmt.Errorf("writing tls.yml: %w", err)
 	}
 

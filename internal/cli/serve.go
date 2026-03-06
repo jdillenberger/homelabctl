@@ -60,6 +60,18 @@ var serveCmd = &cobra.Command{
 			return fmt.Errorf("creating server: %w", err)
 		}
 
+		// Regenerate dashboard route if traefik is deployed with routing enabled.
+		// This ensures the config stays current if hostname or web port changed.
+		// Use the actual resolved port (which may come from -p flag).
+		if cfg.Routing.Enabled {
+			if _, statErr := os.Stat(cfg.AppDir("traefik")); statErr == nil {
+				cfg.Network.WebPort = port
+				if err := app.GenerateDashboardRoute(cfg); err != nil {
+					slog.Warn("Failed to regenerate dashboard route", "error", err)
+				}
+			}
+		}
+
 		// Start mDNS advertising
 		if cfg.MDNS.Enabled {
 			deployedApps, err := mgr.ListDeployed()

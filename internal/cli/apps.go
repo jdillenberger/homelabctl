@@ -96,7 +96,7 @@ func init() {
 	appsDeployCmd.Flags().StringSlice("set", nil, "Set values (key=value)")
 	appsDeployCmd.Flags().Bool("dry-run", false, "Show rendered files without deploying")
 	appsDeployCmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompt")
-	appsRemoveCmd.Flags().Bool("keep-data", false, "Keep app data volumes")
+	appsRemoveCmd.Flags().Bool("purge-data", false, "Also remove app data volumes")
 	appsRemoveCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
 	appsLogsCmd.Flags().BoolP("follow", "f", false, "Follow log output")
 	appsLogsCmd.Flags().IntP("lines", "n", 100, "Number of lines to show")
@@ -417,19 +417,19 @@ var appsRemoveCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		keepData, _ := cmd.Flags().GetBool("keep-data")
+		purgeData, _ := cmd.Flags().GetBool("purge-data")
 		force, _ := cmd.Flags().GetBool("force")
 		if !force {
-			msg := fmt.Sprintf("Remove app %s (including all data)?", args[0])
-			if keepData {
-				msg = fmt.Sprintf("Remove app %s (data will be kept)?", args[0])
+			msg := fmt.Sprintf("Remove app %s (data will be kept)?", args[0])
+			if purgeData {
+				msg = fmt.Sprintf("Remove app %s (including all data)?", args[0])
 			}
 			if !app.AskConfirmation(msg) {
 				fmt.Println("Aborted.")
 				return nil
 			}
 		}
-		return mgr.Remove(args[0], keepData)
+		return mgr.Remove(args[0], !purgeData)
 	},
 }
 

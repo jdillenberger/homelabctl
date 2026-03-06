@@ -38,7 +38,8 @@ func TestCertManagerEnsureCerts(t *testing.T) {
 	})
 
 	t.Run("dynamic/tls.yml exists", func(t *testing.T) {
-		path := filepath.Join(certsDir, "dynamic", "tls.yml")
+		dynamicDir := filepath.Join(tmpDir, "dynamic")
+		path := filepath.Join(dynamicDir, "tls.yml")
 		data, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatalf("expected dynamic/tls.yml to exist: %v", err)
