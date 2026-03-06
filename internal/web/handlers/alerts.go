@@ -41,6 +41,20 @@ func (h *Handler) HandleAlertsPage(c echo.Context) error {
 	})
 }
 
+// AlertsPartial renders a compact list of recent alerts for the sidebar.
+func (h *Handler) AlertsPartial(c echo.Context) error {
+	store := alert.NewStore(h.cfg.DataDir)
+	history, err := store.LoadHistory()
+	if err != nil {
+		history = nil
+	}
+	// Show last 5 entries
+	if len(history) > 5 {
+		history = history[len(history)-5:]
+	}
+	return c.Render(http.StatusOK, "alerts_partial.html", history)
+}
+
 // APIAlertRules returns alert rules as JSON.
 func (h *Handler) APIAlertRules(c echo.Context) error {
 	store := alert.NewStore(h.cfg.DataDir)

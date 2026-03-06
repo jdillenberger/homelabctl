@@ -3,13 +3,14 @@
 {{define "title"}}{{.Hostname}} - homelabctl{{end}}
 
 {{define "content"}}
-{{if .ShowStats}}
-<div id="stats-panel" hx-get="/stats/partial" hx-trigger="every 10s" hx-swap="innerHTML">
-    {{template "stats_partial.html" .Stats}}
+{{if gt .ActiveAlertCount 0}}
+<div class="alert-banner">
+    <span>{{.ActiveAlertCount}} alert{{if gt .ActiveAlertCount 1}}s{{end}} in the last 24h</span>
+    <a href="/alerts">View &rarr;</a>
 </div>
 {{end}}
 
-<h3 class="section-title">Apps</h3>
+<h3 class="section-title" style="margin-top:0;">Apps</h3>
 {{if .Apps}}
 <div class="apps-grid">
     {{range .Apps}}
@@ -20,9 +21,7 @@
                 {{else if .AccessURL}}<a href="{{.AccessURL}}" target="_blank" rel="noopener">{{.Name}}</a>
                 {{else}}<a href="/apps/{{.Name}}">{{.Name}}</a>{{end}}
             </h4>
-            {{if eq .Health "healthy"}}<span class="badge badge-running">healthy</span>
-            {{else if eq .Health "unhealthy"}}<span class="badge badge-stopped">down</span>
-            {{else}}<span class="badge badge-available">unknown</span>{{end}}
+            <span id="health-{{.Name}}" class="badge badge-available">...</span>
         </div>
         {{if .Description}}<p style="margin:0.5rem 0 0.25rem;"><small>{{.Description}}</small></p>{{end}}
         <p style="margin:0;">
@@ -32,27 +31,12 @@
     </div>
     {{end}}
 </div>
+<!-- Load health badges asynchronously -->
+<div hx-get="/dashboard/health" hx-trigger="load" hx-swap="innerHTML" style="display:none;"></div>
 {{else}}
 <p>No apps deployed yet. <a href="/apps">Browse available templates</a> or run <code>homelabctl deploy &lt;app&gt;</code>.</p>
 {{end}}
 
-{{if .Peers}}
-<h3 class="section-title">Other Servers</h3>
-<div class="apps-grid">
-    {{range .Peers}}
-    <div class="app-card">
-        <h4 style="margin:0;"><a href="{{.DashURL}}" target="_blank" rel="noopener">{{.Hostname}}</a></h4>
-        {{if .Apps}}<p style="margin:0.5rem 0 0;"><small>Apps: {{range $i, $a := .Apps}}{{if $i}}, {{end}}{{$a}}{{end}}</small></p>{{end}}
-    </div>
-    {{end}}
-</div>
-{{end}}
-
-<h3 class="section-title">Quick Actions</h3>
-<div class="quick-actions">
-    <a href="/apps" role="button">Browse Templates</a>
-    <a href="/backups" role="button" class="outline">Backups</a>
-    <a href="/alerts" role="button" class="outline">Alerts</a>
-    <a href="/settings" role="button" class="outline">Settings</a>
-</div>
+<!-- Fleet peers loaded asynchronously -->
+<div id="peers-section" hx-get="/dashboard/peers" hx-trigger="load" hx-swap="innerHTML"></div>
 {{end}}

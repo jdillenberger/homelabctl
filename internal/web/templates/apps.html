@@ -5,10 +5,14 @@
 {{define "content"}}
 <h2>Apps</h2>
 
-<h3 class="section-title">Deployed Apps</h3>
+<div class="app-search">
+    <input type="search" id="app-filter" placeholder="Filter apps and templates..." oninput="filterApps(this.value)" autocomplete="off">
+</div>
+
+<h3 class="section-title" style="margin-top:0;">Deployed Apps</h3>
 {{if .DeployedApps}}
 <div class="overflow-auto">
-    <table>
+    <table id="deployed-table">
         <thead>
             <tr>
                 <th>Name</th>
@@ -37,30 +41,61 @@
 <p>No apps deployed yet.</p>
 {{end}}
 
-<h3 class="section-title">Available Templates</h3>
-{{if .Templates}}
-<div class="apps-grid">
-    {{range .Templates}}
-    <div class="app-card">
-        <h4>{{.Name}}</h4>
-        <p>{{.Description}}</p>
-        <p>
-            <span class="badge badge-available">{{.Category}}</span>
-            {{if .Version}}<small>v{{.Version}}</small>{{end}}
-        </p>
-        {{if not (index $.DeployedSet .Name)}}
-        <div class="actions">
-            <small>Deploy via CLI: <code>homelabctl apps deploy {{.Name}}</code></small>
-        </div>
-        {{else}}
-        <div class="actions">
-            <span class="badge badge-deployed">deployed</span>
+<details id="templates-section">
+    <summary><h3 class="section-title" style="display:inline;margin:0;cursor:pointer;">Available Templates ({{len .Templates}})</h3></summary>
+    {{if .Templates}}
+    <div class="apps-grid" id="templates-grid" style="margin-top:1rem;">
+        {{range .Templates}}
+        <div class="app-card template-card">
+            <h4>{{.Name}}</h4>
+            <p>{{.Description}}</p>
+            <p>
+                <span class="badge badge-available">{{.Category}}</span>
+                {{if .Version}}<small>v{{.Version}}</small>{{end}}
+            </p>
+            {{if not (index $.DeployedSet .Name)}}
+            <div class="actions">
+                <small>Deploy via CLI: <code>homelabctl apps deploy {{.Name}}</code></small>
+            </div>
+            {{else}}
+            <div class="actions">
+                <span class="badge badge-deployed">deployed</span>
+            </div>
+            {{end}}
         </div>
         {{end}}
     </div>
+    {{else}}
+    <p>No templates available.</p>
     {{end}}
-</div>
-{{else}}
-<p>No templates available.</p>
-{{end}}
+</details>
+
+<script>
+function filterApps(query) {
+    query = query.toLowerCase().trim();
+
+    // Filter deployed apps table
+    var rows = document.querySelectorAll('#deployed-table tbody tr');
+    rows.forEach(function(row) {
+        var text = row.textContent.toLowerCase();
+        row.style.display = (!query || text.includes(query)) ? '' : 'none';
+    });
+
+    // Filter template cards
+    var cards = document.querySelectorAll('#templates-grid .template-card');
+    var templateMatch = false;
+    cards.forEach(function(card) {
+        var text = card.textContent.toLowerCase();
+        var match = !query || text.includes(query);
+        card.style.display = match ? '' : 'none';
+        if (match && query) templateMatch = true;
+    });
+
+    // Auto-open templates section if search matches templates
+    var details = document.getElementById('templates-section');
+    if (query && templateMatch) {
+        details.open = true;
+    }
+}
+</script>
 {{end}}

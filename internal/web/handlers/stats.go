@@ -75,6 +75,12 @@ func (h *Handler) StatsPartial(c echo.Context) error {
 	return c.Render(http.StatusOK, "stats_partial.html", stats)
 }
 
+// StatsCompact renders a compact one-line stats string for the nav bar.
+func (h *Handler) StatsCompact(c echo.Context) error {
+	stats := collectStats()
+	return c.Render(http.StatusOK, "stats_compact.html", stats)
+}
+
 // statsJSON returns stats as a JSON-friendly map.
 func statsJSON() map[string]interface{} {
 	stats := collectStats()

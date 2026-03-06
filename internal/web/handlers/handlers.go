@@ -40,9 +40,12 @@ func (h *Handler) basePage() BasePage {
 func (h *Handler) Register(e *echo.Echo) {
 	// Dashboard
 	e.GET("/", h.Dashboard)
+	e.GET("/dashboard/health", h.DashboardHealth)
+	e.GET("/dashboard/peers", h.DashboardPeers)
 
 	// Stats
 	e.GET("/stats/partial", h.StatsPartial)
+	e.GET("/stats/compact", h.StatsCompact)
 
 	// Apps
 	e.GET("/apps", h.AppsList)
@@ -62,6 +65,7 @@ func (h *Handler) Register(e *echo.Echo) {
 
 	// Alerts
 	e.GET("/alerts", h.HandleAlertsPage)
+	e.GET("/alerts/partial", h.AlertsPartial)
 	e.GET("/api/alerts/rules", h.APIAlertRules)
 	e.GET("/api/alerts/history", h.APIAlertHistory)
 

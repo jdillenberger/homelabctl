@@ -1,17 +1,17 @@
-<div class="stats-grid">
-    <div class="stat-card">
-        <div class="value">{{printf "%.1f" .CPUPercent}}%</div>
+<div class="sidebar-stats">
+    <div class="sidebar-stat">
+        <div class="value">{{printf "%.0f" .CPUPercent}}%</div>
         <div class="label">CPU</div>
     </div>
-    <div class="stat-card">
-        <div class="value">{{printf "%.1f" .MemPercent}}%</div>
-        <div class="label">Memory ({{.MemUsedGB}} / {{.MemTotalGB}} GB)</div>
+    <div class="sidebar-stat">
+        <div class="value">{{printf "%.0f" .MemPercent}}%</div>
+        <div class="label">MEM {{.MemUsedGB}}/{{.MemTotalGB}}G</div>
     </div>
-    <div class="stat-card">
-        <div class="value">{{printf "%.1f" .DiskPercent}}%</div>
-        <div class="label">Disk ({{.DiskUsedGB}} / {{.DiskTotalGB}} GB)</div>
+    <div class="sidebar-stat">
+        <div class="value">{{printf "%.0f" .DiskPercent}}%</div>
+        <div class="label">DISK {{.DiskUsedGB}}/{{.DiskTotalGB}}G</div>
     </div>
-    <div class="stat-card">
+    <div class="sidebar-stat">
         <div class="value">{{.Uptime}}</div>
         <div class="label">Uptime</div>
     </div>

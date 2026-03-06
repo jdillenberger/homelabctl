@@ -1,0 +1,13 @@
+{{if .}}
+<ul style="list-style:none;padding:0;margin:0;">
+    {{range .}}
+    <li style="padding:0.35rem 0;border-bottom:1px solid var(--pico-muted-border-color,#e0e0e0);font-size:0.8rem;">
+        <span class="badge badge-{{if eq (print .Severity) "critical"}}stopped{{else if eq (print .Severity) "warning"}}available{{else}}deployed{{end}}" style="margin-right:0.25rem;">{{.Severity}}</span>
+        {{.Type}}: {{.Message}}
+        <br><small style="color:var(--pico-muted-color,#666);">{{.Timestamp.Format "Jan 02 15:04"}}</small>
+    </li>
+    {{end}}
+</ul>
+{{else}}
+<p style="color:var(--pico-muted-color,#666);font-size:0.85rem;">No recent alerts.</p>
+{{end}}
