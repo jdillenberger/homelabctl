@@ -70,9 +70,12 @@ func TestIntegrationAppLifecycle(t *testing.T) {
 		return string(out)
 	}
 
-	// Cleanup on failure
+	// Cleanup on failure — remove root-owned files created by containers
+	// before t.TempDir() attempts its cleanup.
 	t.Cleanup(func() {
 		run("apps", "remove", appName)
+		_ = exec.Command("docker", "run", "--rm",
+			"-v", dataDir+":/data", "alpine", "sh", "-c", "rm -rf /data/*").Run()
 		_ = exec.Command("docker", "network", "rm", "homelabctl-test-net").Run()
 	})
 
