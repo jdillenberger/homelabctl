@@ -37,7 +37,7 @@ volumes:
     container: /var/lib/postgresql/data
     description: PostgreSQL data
 health_check:
-  url: "http://localhost:{{.web_port}}"
+  url: "http://localhost:{{.web_port}}/api/healthz"
   interval: 30s
 backup:
   paths:

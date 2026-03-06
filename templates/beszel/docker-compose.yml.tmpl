@@ -11,6 +11,7 @@ services:
       resources:
         limits:
           memory: 128M
+          pids: 200
     volumes:
       - {{index . "data_dir"}}/data:/beszel_data
     healthcheck:
@@ -26,7 +27,6 @@ services:
         max-file: "3"
     security_opt:
       - no-new-privileges:true
-    pids_limit: 200
     networks:
       - {{index . "network"}}
 

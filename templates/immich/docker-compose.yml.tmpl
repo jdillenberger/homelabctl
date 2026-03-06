@@ -11,7 +11,7 @@ services:
       - IMMICH_MACHINE_LEARNING_URL=http://immich-machine-learning:3003
       - TZ={{index . "timezone"}}
     volumes:
-      - {{index . "upload_location"}}:/usr/src/app/upload
+      - {{if index . "upload_location"}}{{index . "upload_location"}}{{else}}{{index . "data_dir"}}/upload{{end}}:/usr/src/app/upload
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:2283/api/server/ping || exit 1"]
       interval: 30s
@@ -22,6 +22,7 @@ services:
       resources:
         limits:
           memory: 2G
+          pids: 200
     depends_on:
       immich-db:
         condition: service_healthy
@@ -29,7 +30,6 @@ services:
         condition: service_healthy
     security_opt:
       - no-new-privileges:true
-    pids_limit: 200
     logging:
       driver: json-file
       options:
@@ -48,6 +48,7 @@ services:
       resources:
         limits:
           memory: 4G
+          pids: 200
     volumes:
       - {{index . "data_dir"}}/model-cache:/cache
     healthcheck:
@@ -58,7 +59,6 @@ services:
       start_period: 60s
     security_opt:
       - no-new-privileges:true
-    pids_limit: 200
     logging:
       driver: json-file
       options:
@@ -82,6 +82,7 @@ services:
       resources:
         limits:
           memory: 1G
+          pids: 100
     volumes:
       - {{index . "data_dir"}}/db:/var/lib/postgresql/data
     healthcheck:
@@ -92,7 +93,6 @@ services:
       start_period: 10s
     security_opt:
       - no-new-privileges:true
-    pids_limit: 100
     logging:
       driver: json-file
       options:
@@ -113,6 +113,7 @@ services:
       resources:
         limits:
           memory: 256M
+          pids: 50
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -120,7 +121,6 @@ services:
       retries: 5
     security_opt:
       - no-new-privileges:true
-    pids_limit: 50
     logging:
       driver: json-file
       options:

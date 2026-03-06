@@ -12,15 +12,24 @@ ports:
     container: 80
     protocol: tcp
     description: Web UI (after setup)
+    value_name: admin_port
+  - host: 53
+    container: 53
+    protocol: tcp
+    description: DNS (TCP)
+    value_name: dns_port
   - host: 53
     container: 53
     protocol: udp
-    description: DNS
+    description: DNS (UDP)
     value_name: dns_port
 values:
   - name: web_port
     description: Web UI port
     default: "3000"
+  - name: admin_port
+    description: Web UI port (after initial setup)
+    default: "80"
   - name: dns_port
     description: DNS port
     default: "53"

@@ -6,6 +6,7 @@ services:
     hostname: gitlab
     ports:
       - "{{index . "web_port"}}:80"
+      - "{{index . "https_port"}}:443"
       - "{{index . "ssh_port"}}:22"
     environment:
       TZ: '{{index . "timezone"}}'
@@ -30,6 +31,7 @@ services:
       resources:
         limits:
           memory: 4G
+          pids: 200
     logging:
       driver: json-file
       options:
@@ -37,7 +39,6 @@ services:
         max-file: "3"
     security_opt:
       - no-new-privileges:true
-    pids_limit: 200
     networks:
       - {{index . "network"}}
 

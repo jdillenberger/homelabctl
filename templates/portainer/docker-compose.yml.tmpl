@@ -18,12 +18,12 @@ services:
       resources:
         limits:
           memory: 256M
+          pids: 200
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - {{index . "data_dir"}}:/data
     security_opt:
       - no-new-privileges:true
-    pids_limit: 200
     logging:
       driver: json-file
       options:

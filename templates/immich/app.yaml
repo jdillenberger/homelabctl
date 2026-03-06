@@ -18,7 +18,6 @@ values:
     auto_gen: password
   - name: upload_location
     description: Path for uploaded photos/videos
-    default: "./upload"
   - name: timezone
     description: Timezone
     default: "UTC"

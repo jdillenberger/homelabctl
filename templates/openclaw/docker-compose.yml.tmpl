@@ -22,12 +22,12 @@ services:
       resources:
         limits:
           memory: 2G
+          pids: 200
     volumes:
       - {{index . "data_dir"}}/config:/home/node/.openclaw
       - {{index . "data_dir"}}/workspace:/home/node/.openclaw/workspace
     security_opt:
       - no-new-privileges:true
-    pids_limit: 200
     logging:
       driver: json-file
       options:
@@ -46,9 +46,13 @@ services:
     cap_drop:
       - NET_RAW
       - NET_ADMIN
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          pids: 200
     security_opt:
       - no-new-privileges:true
-    pids_limit: 200
     environment:
       - HOME=/home/node
       - TERM=xterm-256color

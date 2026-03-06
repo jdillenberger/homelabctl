@@ -7,16 +7,24 @@ ports:
     container: 80
     protocol: tcp
     description: HTTP
+    value_name: http_port
   - host: 443
     container: 443
     protocol: tcp
     description: HTTPS
+    value_name: https_port
   - host: 81
     container: 81
     protocol: tcp
     description: Admin Web UI
     value_name: web_port
 values:
+  - name: http_port
+    description: HTTP port
+    default: "80"
+  - name: https_port
+    description: HTTPS port
+    default: "443"
   - name: web_port
     description: Admin Web UI port
     default: "81"

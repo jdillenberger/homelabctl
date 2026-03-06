@@ -27,6 +27,7 @@ services:
       resources:
         limits:
           memory: 1G
+          pids: 200
     depends_on:
       mattermost-db:
         condition: service_healthy
@@ -37,7 +38,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    pids_limit: 200
     networks:
       - {{index . "network"}}
 
@@ -63,6 +63,7 @@ services:
       resources:
         limits:
           memory: 512M
+          pids: 100
     security_opt:
       - no-new-privileges:true
     logging:
@@ -70,7 +71,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    pids_limit: 100
     networks:
       - {{index . "network"}}
 

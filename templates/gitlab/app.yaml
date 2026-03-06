@@ -12,6 +12,7 @@ ports:
     container: 443
     protocol: tcp
     description: HTTPS
+    value_name: https_port
   - host: 2224
     container: 22
     protocol: tcp
@@ -21,6 +22,9 @@ values:
   - name: web_port
     description: HTTP port
     default: "8929"
+  - name: https_port
+    description: HTTPS port
+    default: "443"
   - name: ssh_port
     description: SSH port
     default: "2224"
@@ -47,7 +51,7 @@ volumes:
     container: /var/opt/gitlab
     description: GitLab data
 health_check:
-  url: "http://localhost:{{.web_port}}"
+  url: "http://localhost:{{.web_port}}/-/health"
   interval: 120s
 backup:
   paths:

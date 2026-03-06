@@ -31,6 +31,7 @@ services:
       resources:
         limits:
           memory: 1G
+          pids: 200
     depends_on:
       paperless-ngx-db:
         condition: service_healthy
@@ -38,7 +39,6 @@ services:
         condition: service_healthy
     security_opt:
       - no-new-privileges:true
-    pids_limit: 200
     logging:
       driver: json-file
       options:
@@ -69,9 +69,9 @@ services:
       resources:
         limits:
           memory: 256M
+          pids: 100
     security_opt:
       - no-new-privileges:true
-    pids_limit: 100
     logging:
       driver: json-file
       options:
@@ -97,9 +97,9 @@ services:
       resources:
         limits:
           memory: 256M
+          pids: 50
     security_opt:
       - no-new-privileges:true
-    pids_limit: 50
     logging:
       driver: json-file
       options:

@@ -12,6 +12,9 @@ values:
   - name: web_port
     description: Web UI port
     default: "3005"
+  - name: distro
+    description: Base distribution (ubuntu, alpine, fedora)
+    default: "ubuntu"
   - name: desktop_env
     description: Desktop environment (xfce, kde, mate, i3, openbox)
     default: "xfce"

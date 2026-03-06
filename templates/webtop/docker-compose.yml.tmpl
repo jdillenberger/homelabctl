@@ -1,6 +1,6 @@
 services:
   webtop:
-    image: lscr.io/linuxserver/webtop:{{index . "desktop_env"}}
+    image: lscr.io/linuxserver/webtop:{{index . "distro"}}-{{index . "desktop_env"}}
     container_name: webtop
     restart: unless-stopped
     ports:
@@ -19,12 +19,13 @@ services:
       resources:
         limits:
           memory: 2G
+          pids: 200
     volumes:
       - {{index . "data_dir"}}/config:/config
     shm_size: '1gb'
     security_opt:
       - seccomp:unconfined
-    pids_limit: 200
+      - no-new-privileges:true
     logging:
       driver: json-file
       options:

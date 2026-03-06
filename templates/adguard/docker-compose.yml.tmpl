@@ -5,6 +5,7 @@ services:
     restart: unless-stopped
     ports:
       - "{{index . "web_port"}}:3000/tcp"
+      - "{{index . "admin_port"}}:80/tcp"
       - "{{index . "dns_port"}}:53/tcp"
       - "{{index . "dns_port"}}:53/udp"
     environment:
@@ -13,6 +14,7 @@ services:
       resources:
         limits:
           memory: 256M
+          pids: 200
     volumes:
       - {{index . "data_dir"}}/work:/opt/adguardhome/work
       - {{index . "data_dir"}}/conf:/opt/adguardhome/conf
@@ -29,7 +31,6 @@ services:
         max-file: "3"
     security_opt:
       - no-new-privileges:true
-    pids_limit: 200
     networks:
       - {{index . "network"}}
 

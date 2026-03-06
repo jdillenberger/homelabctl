@@ -15,6 +15,7 @@ services:
       resources:
         limits:
           memory: 1G
+          pids: 200
     volumes:
       - {{index . "data_dir"}}/config:/config
     healthcheck:
@@ -30,7 +31,6 @@ services:
         max-file: "3"
     security_opt:
       - no-new-privileges:true
-    pids_limit: 200
     networks:
       - {{index . "network"}}
 
