@@ -13,7 +13,7 @@ import (
 const serviceType = "_homelabctl._tcp"
 
 // Advertise registers the homelabctl service via mDNS and returns a shutdown function.
-// It should be run as part of serve mode; the returned function stops advertising.
+// It should be run as part of daemon mode; the returned function stops advertising.
 func Advertise(cfg *config.Config, version string, apps []string) (shutdown func(), err error) {
 	hostname := cfg.Hostname
 	port := cfg.Network.WebPort

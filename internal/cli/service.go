@@ -11,10 +11,7 @@ import (
 	"github.com/jdillenberger/homelabctl/internal/config"
 )
 
-const (
-	unitName = "homelabctl.service"
-	unitPath = "/etc/systemd/system/" + unitName
-)
+var validComponents = []string{"dashboard", "mdns", "scheduler"}
 
 func init() {
 	rootCmd.AddCommand(serviceCmd)
@@ -41,16 +38,48 @@ func homelabctlBinary() string {
 	return resolved
 }
 
-func generateUnitFile(runtime string) string {
+// serviceUnitName returns the systemd unit name for the given component.
+// An empty component means the combined daemon.
+func serviceUnitName(component string) string {
+	if component == "" {
+		return "homelabctl.service"
+	}
+	return fmt.Sprintf("homelabctl-%s.service", component)
+}
+
+// serviceUnitPath returns the systemd unit file path for the given component.
+func serviceUnitPath(component string) string {
+	return "/etc/systemd/system/" + serviceUnitName(component)
+}
+
+// serviceDescription returns the unit description for the given component.
+func serviceDescription(component string) string {
+	switch component {
+	case "dashboard":
+		return "homelabctl web dashboard"
+	case "mdns":
+		return "homelabctl mDNS advertiser"
+	case "scheduler":
+		return "homelabctl background scheduler"
+	default:
+		return "homelabctl management daemon"
+	}
+}
+
+func generateUnitFile(runtime, component string) string {
 	binPath := homelabctlBinary()
+	execStart := binPath + " daemon"
+	if component != "" {
+		execStart += " " + component
+	}
 	return fmt.Sprintf(`[Unit]
-Description=homelabctl management daemon
+Description=%s
 After=network-online.target %s.service
 Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=%s serve
+ExecStart=%s
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal
@@ -58,18 +87,44 @@ StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
-`, runtime, binPath)
+`, serviceDescription(component), runtime, execStart)
+}
+
+func validateComponent(component string) error {
+	if component == "" {
+		return nil
+	}
+	for _, v := range validComponents {
+		if component == v {
+			return nil
+		}
+	}
+	return fmt.Errorf("invalid component %q, valid components: %v", component, validComponents)
 }
 
 var serviceInstallCmd = &cobra.Command{
-	Use:   "install",
+	Use:   "install [component]",
 	Short: "Install the homelabctl systemd service",
+	Long:  "Install a systemd service. Optionally specify a component (dashboard, mdns, scheduler).",
+	Args:  cobra.MaximumNArgs(1),
+	ValidArgs: validComponents,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		var component string
+		if len(args) > 0 {
+			component = args[0]
+		}
+		if err := validateComponent(component); err != nil {
+			return err
+		}
+
 		cfg, err := config.Load()
 		if err != nil {
 			return err
 		}
-		unit := generateUnitFile(cfg.Docker.Runtime)
+
+		unit := generateUnitFile(cfg.Docker.Runtime, component)
+		unitPath := serviceUnitPath(component)
+		unitName := serviceUnitName(component)
 
 		if err := os.WriteFile(unitPath, []byte(unit), 0o644); err != nil {
 			return fmt.Errorf("writing unit file: %w (are you root?)", err)
@@ -92,9 +147,23 @@ var serviceInstallCmd = &cobra.Command{
 }
 
 var serviceUninstallCmd = &cobra.Command{
-	Use:   "uninstall",
+	Use:   "uninstall [component]",
 	Short: "Uninstall the homelabctl systemd service",
+	Long:  "Uninstall a systemd service. Optionally specify a component (dashboard, mdns, scheduler).",
+	Args:  cobra.MaximumNArgs(1),
+	ValidArgs: validComponents,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		var component string
+		if len(args) > 0 {
+			component = args[0]
+		}
+		if err := validateComponent(component); err != nil {
+			return err
+		}
+
+		unitName := serviceUnitName(component)
+		unitPath := serviceUnitPath(component)
+
 		_ = runSystemctl("stop", unitName)
 		_ = runSystemctl("disable", unitName)
 
@@ -112,13 +181,24 @@ var serviceUninstallCmd = &cobra.Command{
 }
 
 var serviceStatusCmd = &cobra.Command{
-	Use:   "status",
+	Use:   "status [component]",
 	Short: "Show homelabctl service status",
+	Long:  "Show systemd service status. Optionally specify a component (dashboard, mdns, scheduler).",
+	Args:  cobra.MaximumNArgs(1),
+	ValidArgs: validComponents,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		c := exec.Command("systemctl", "status", unitName)
+		var component string
+		if len(args) > 0 {
+			component = args[0]
+		}
+		if err := validateComponent(component); err != nil {
+			return err
+		}
+
+		c := exec.Command("systemctl", "status", serviceUnitName(component))
 		c.Stdout = os.Stdout
 		c.Stderr = os.Stderr
-		_ = c.Run() // systemctl status exits non-zero if not running
+		_ = c.Run()
 		return nil
 	},
 }

@@ -50,6 +50,12 @@ func (h *Handler) Dashboard(c echo.Context) error {
 	deployed, _ := h.manager.ListDeployed()
 	registry := h.manager.Registry()
 
+	// Use the request host so app links match how the user reached the dashboard.
+	requestHost := c.Request().Host
+	if idx := strings.LastIndex(requestHost, ":"); idx != -1 {
+		requestHost = requestHost[:idx]
+	}
+
 	var portalApps []PortalApp
 	for _, name := range deployed {
 		info, err := h.manager.GetDeployedInfo(name)
@@ -64,13 +70,9 @@ func (h *Handler) Dashboard(c echo.Context) error {
 			Health:     "unknown",
 		}
 
-		// Get description and URLs from registry (fast, no I/O)
 		if meta, ok := registry.Get(name); ok {
 			pa.Description = meta.Description
 
-			hostname := h.cfg.Hostname
-			domain := h.cfg.Network.Domain
-			fqdn := hostname + "." + domain
 			for _, p := range meta.Ports {
 				if p.ValueName != "" {
 					if portVal, ok := info.Values[p.ValueName]; ok {
@@ -78,17 +80,17 @@ func (h *Handler) Dashboard(c echo.Context) error {
 						if strings.Contains(strings.ToLower(p.Description), "https") {
 							scheme = "https"
 						}
-						pa.AccessURL = fmt.Sprintf("%s://%s:%s", scheme, fqdn, portVal)
+						pa.AccessURL = fmt.Sprintf("%s://%s:%s", scheme, requestHost, portVal)
 						break
 					}
 				} else if p.Host > 0 {
-					pa.AccessURL = fmt.Sprintf("http://%s:%d", fqdn, p.Host)
+					pa.AccessURL = fmt.Sprintf("http://%s:%d", requestHost, p.Host)
 					break
 				}
 			}
 		}
 
-		// Set routing URL if available
+		// Set routing URL for JS upgrade (not used as initial href)
 		if info.Routing != nil && info.Routing.Enabled && len(info.Routing.Domains) > 0 {
 			scheme := "http"
 			if h.cfg.Routing.HTTPS.Enabled {
@@ -97,10 +99,8 @@ func (h *Handler) Dashboard(c echo.Context) error {
 			pa.RoutingURL = fmt.Sprintf("%s://%s", scheme, info.Routing.Domains[0])
 		}
 
-		// Set display URL
-		if pa.RoutingURL != "" {
-			pa.DisplayURL = strings.TrimPrefix(strings.TrimPrefix(pa.RoutingURL, "https://"), "http://")
-		} else if pa.AccessURL != "" {
+		// Display URL always derives from AccessURL (JS upgrades it if routing is active)
+		if pa.AccessURL != "" {
 			pa.DisplayURL = strings.TrimPrefix(strings.TrimPrefix(pa.AccessURL, "https://"), "http://")
 		}
 

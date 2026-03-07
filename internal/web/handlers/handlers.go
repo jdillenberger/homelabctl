@@ -83,5 +83,6 @@ func (h *Handler) Register(e *echo.Echo) {
 	e.GET("/api/health", h.APIHealth)
 	e.GET("/api/stats", h.APIStats)
 	e.GET("/api/apps", h.APIApps)
+	e.GET("/api/routing/status", h.APIRoutingStatus)
 
 }

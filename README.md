@@ -61,7 +61,7 @@ homelabctl deploy nextcloud
 homelabctl status
 
 # 5. Open the auto-generated dashboard
-homelabctl serve
+homelabctl daemon
 ```
 
 ## Key Features
@@ -167,7 +167,7 @@ homelabctl templates new myapp
 ## Web Dashboard
 
 ```sh
-homelabctl serve
+homelabctl daemon dashboard
 ```
 
 Starts an auto-generated portal at `http://<server>:8420` showing all deployed apps with their status, health, and links. The dashboard is regenerated from actual deployment state -- it cannot drift.
@@ -214,7 +214,10 @@ homelabctl alerts list|add|remove Alert management
 homelabctl fleet status           Multi-server fleet status
 homelabctl fleet discover         Discover servers via mDNS
 homelabctl templates list         List available templates
-homelabctl serve                  Start web dashboard
+homelabctl daemon                  Run all daemon components
+homelabctl daemon dashboard        Start web dashboard
+homelabctl daemon mdns             Start mDNS advertiser
+homelabctl daemon scheduler        Run background jobs
 homelabctl export                 Export for migration
 homelabctl import                 Import from export
 homelabctl eject                  Remove homelabctl, keep configs
