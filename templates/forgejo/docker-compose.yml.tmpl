@@ -14,8 +14,8 @@ services:
       - FORGEJO__database__NAME=forgejo
       - FORGEJO__database__USER=forgejo
       - FORGEJO__database__PASSWD={{index . "db_password"}}
-      - FORGEJO__server__ROOT_URL=https://{{index . "hostname"}}.{{index . "domain"}}
-      - FORGEJO__server__DOMAIN={{index . "hostname"}}.{{index . "domain"}}
+      - FORGEJO__server__ROOT_URL={{index . "routing_url"}}
+      - FORGEJO__server__DOMAIN={{index . "routing_domain"}}
       - FORGEJO__server__SSH_PORT={{index . "ssh_port"}}
       - FORGEJO__server__SSH_DOMAIN={{index . "hostname"}}.{{index . "domain"}}
       - FORGEJO__security__SECRET_KEY={{index . "secret_key"}}

@@ -2,7 +2,9 @@ package app
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/jdillenberger/homelabctl/internal/config"
@@ -268,6 +270,41 @@ func (m *Manager) RegenerateCompose(appName string) error {
 	meta, ok := m.registry.Get(appName)
 	if !ok {
 		return fmt.Errorf("unknown app template: %s", appName)
+	}
+
+	// Refresh routing values from current config
+	if m.cfg.Routing.Enabled && m.cfg.Routing.HTTPS.Enabled {
+		info.Values["https_enabled"] = "true"
+		info.Values["ca_cert_path"] = filepath.Join(m.cfg.DataPath("traefik"), "certs", "ca.crt")
+	} else {
+		info.Values["https_enabled"] = "false"
+		info.Values["ca_cert_path"] = ""
+	}
+	if m.cfg.Routing.Enabled && info.Routing != nil && info.Routing.Enabled && len(info.Routing.Domains) > 0 {
+		scheme := "http"
+		if m.cfg.Routing.HTTPS.Enabled {
+			scheme = "https"
+		}
+		info.Values["routing_domain"] = info.Routing.Domains[0]
+		info.Values["routing_url"] = fmt.Sprintf("%s://%s", scheme, info.Routing.Domains[0])
+	}
+	if info.Values["routing_domain"] == "" {
+		info.Values["routing_domain"] = m.cfg.Hostname + "." + m.cfg.Network.Domain
+	}
+	if info.Values["routing_url"] == "" {
+		scheme := "http"
+		if m.cfg.Routing.HTTPS.Enabled {
+			scheme = "https"
+		}
+		info.Values["routing_url"] = fmt.Sprintf("%s://%s", scheme, info.Values["routing_domain"])
+	}
+
+	// Regenerate CA bundle if HTTPS is enabled
+	if m.cfg.Routing.Enabled && m.cfg.Routing.HTTPS.Enabled && info.Values["ca_cert_path"] != "" {
+		dataDir := m.cfg.DataPath(appName)
+		if err := generateCABundle(info.Values["ca_cert_path"], dataDir); err != nil {
+			slog.Warn("Failed to generate CA bundle", "app", appName, "error", err)
+		}
 	}
 
 	// Re-render templates

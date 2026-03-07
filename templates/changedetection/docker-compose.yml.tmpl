@@ -7,7 +7,7 @@ services:
       - "{{index . "web_port"}}:5000"
     environment:
       - TZ={{index . "timezone"}}
-      - BASE_URL=https://{{index . "hostname"}}.{{index . "domain"}}
+      - BASE_URL={{index . "routing_url"}}
     deploy:
       resources:
         limits:

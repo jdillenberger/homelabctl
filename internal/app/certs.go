@@ -57,10 +57,13 @@ func (cm *CertManager) EnsureCerts(domain string) error {
 	wildcardKeyPath := filepath.Join(cm.certsDir, "wildcard.key")
 	wildcardCrtPath := filepath.Join(cm.certsDir, "wildcard.crt")
 
-	// Generate wildcard cert if missing or expired
+	// Generate wildcard cert if missing, expired, or domain changed
 	needsRegen := !fileExists(wildcardKeyPath) || !fileExists(wildcardCrtPath)
 	if !needsRegen {
 		needsRegen = cm.isCertExpired(wildcardCrtPath)
+	}
+	if !needsRegen {
+		needsRegen = cm.certDomainMismatch(wildcardCrtPath, domain)
 	}
 
 	if needsRegen {
@@ -162,6 +165,19 @@ func (cm *CertManager) generateWildcard(domain, caKeyPath, caCrtPath, keyPath, c
 		return err
 	}
 	return writeCertPEM(crtPath, certDER)
+}
+
+func (cm *CertManager) certDomainMismatch(certPath, domain string) bool {
+	cert, err := loadCert(certPath)
+	if err != nil {
+		return true
+	}
+	for _, dns := range cert.DNSNames {
+		if dns == "*."+domain {
+			return false
+		}
+	}
+	return true
 }
 
 func (cm *CertManager) isCertExpired(certPath string) bool {

@@ -54,6 +54,17 @@ backup:
     - db
   pre_hook: "docker exec nextcloud-db sh -c 'mariadb-dump -u root -p\"$MYSQL_ROOT_PASSWORD\" --all-databases' > /tmp/nextcloud-db-backup.sql"
   post_hook: "rm -f /tmp/nextcloud-db-backup.sql"
+hooks:
+  post_deploy:
+    - type: exec
+      command: |
+        if [ "{{index . "https_enabled"}}" = "true" ] && docker inspect nextcloud > /dev/null 2>&1; then
+          for i in $(seq 1 60); do
+            docker exec nextcloud curl -sf http://localhost:80/status.php > /dev/null 2>&1 && break
+            sleep 2
+          done
+          docker exec -u www-data nextcloud php occ security:certificates:import /usr/local/share/ca-certificates/homelabctl-ca.crt 2>/dev/null || true
+        fi
 requirements:
   min_ram: 512M
   min_disk: 10G

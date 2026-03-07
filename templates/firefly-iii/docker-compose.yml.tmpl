@@ -7,7 +7,7 @@ services:
       - "{{index . "web_port"}}:8080"
     environment:
       - APP_KEY={{index . "app_key"}}
-      - APP_URL=https://{{index . "hostname"}}.{{index . "domain"}}
+      - APP_URL={{index . "routing_url"}}
       - DB_CONNECTION=pgsql
       - DB_HOST=firefly-iii-db
       - DB_PORT=5432

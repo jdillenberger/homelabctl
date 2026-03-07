@@ -190,9 +190,17 @@ func (m *Manager) Deploy(appName string, opts DeployOptions) error {
 		mergedValues["web_port"] = strconv.Itoa(m.cfg.Network.WebPort)
 	}
 
-	// Auto-populate HTTPS values for traefik
-	if appName == "traefik" && m.cfg.Routing.HTTPS.Enabled {
+	// Add HTTPS status for all apps so templates can conditionally set protocol
+	if m.cfg.Routing.Enabled && m.cfg.Routing.HTTPS.Enabled {
 		mergedValues["https_enabled"] = "true"
+		mergedValues["ca_cert_path"] = filepath.Join(m.cfg.DataPath("traefik"), "certs", "ca.crt")
+	} else {
+		mergedValues["https_enabled"] = "false"
+		mergedValues["ca_cert_path"] = ""
+	}
+
+	// Auto-populate traefik-specific HTTPS values
+	if appName == "traefik" && m.cfg.Routing.HTTPS.Enabled {
 		mergedValues["acme_email"] = m.cfg.Routing.HTTPS.AcmeEmail
 		mergedValues["certs_dir"] = filepath.Join(m.cfg.DataPath("traefik"), "certs")
 	}
@@ -213,36 +221,47 @@ func (m *Manager) Deploy(appName string, opts DeployOptions) error {
 		}
 	}
 
+	// Compute routing BEFORE rendering so templates can use routing_domain/routing_url
+	var deployedRouting *DeployedRouting
+	if m.cfg.Routing.Enabled && m.cfg.Routing.Provider == "traefik" {
+		deployedRouting = computeRouting(m.cfg, appName, meta)
+		if deployedRouting.Enabled && len(deployedRouting.Domains) > 0 {
+			scheme := "http"
+			if m.cfg.Routing.HTTPS.Enabled {
+				scheme = "https"
+			}
+			mergedValues["routing_domain"] = deployedRouting.Domains[0]
+			mergedValues["routing_url"] = fmt.Sprintf("%s://%s", scheme, deployedRouting.Domains[0])
+		}
+	}
+
+	// Fallback routing values when routing is disabled (templates use missingkey=error)
+	if mergedValues["routing_domain"] == "" {
+		mergedValues["routing_domain"] = m.cfg.Hostname + "." + m.cfg.Network.Domain
+	}
+	if mergedValues["routing_url"] == "" {
+		scheme := "http"
+		if m.cfg.Routing.HTTPS.Enabled {
+			scheme = "https"
+		}
+		mergedValues["routing_url"] = fmt.Sprintf("%s://%s", scheme, mergedValues["routing_domain"])
+	}
+
 	// Render templates
 	rendered, err := m.renderer.RenderAllFiles(appName, mergedValues)
 	if err != nil {
 		return fmt.Errorf("rendering templates: %w", err)
 	}
 
-	// Compute and inject routing labels
-	var deployedRouting *DeployedRouting
-	if m.cfg.Routing.Enabled && m.cfg.Routing.Provider == "traefik" {
-		deployedRouting = computeRouting(m.cfg, appName, meta)
-
-		if deployedRouting.Enabled {
-			labeler := NewRoutingLabeler(m.cfg)
-			if compose, ok := rendered["docker-compose.yml"]; ok {
-				modified, err := labeler.InjectLabels(compose, appName, deployedRouting)
-				if err != nil {
-					slog.Warn("Failed to inject routing labels", "app", appName, "error", err)
-				} else {
-					rendered["docker-compose.yml"] = modified
-				}
-			}
-
-			// Add routing values for use in templates/post-deploy info
-			if len(deployedRouting.Domains) > 0 {
-				scheme := "http"
-				if m.cfg.Routing.HTTPS.Enabled {
-					scheme = "https"
-				}
-				mergedValues["routing_domain"] = deployedRouting.Domains[0]
-				mergedValues["routing_url"] = fmt.Sprintf("%s://%s", scheme, deployedRouting.Domains[0])
+	// Inject routing labels into rendered compose
+	if deployedRouting != nil && deployedRouting.Enabled {
+		labeler := NewRoutingLabeler(m.cfg)
+		if compose, ok := rendered["docker-compose.yml"]; ok {
+			modified, err := labeler.InjectLabels(compose, appName, deployedRouting)
+			if err != nil {
+				slog.Warn("Failed to inject routing labels", "app", appName, "error", err)
+			} else {
+				rendered["docker-compose.yml"] = modified
 			}
 		}
 	}
@@ -284,6 +303,13 @@ func (m *Manager) Deploy(appName string, opts DeployOptions) error {
 	dataDir := m.cfg.DataPath(appName)
 	if err := os.MkdirAll(dataDir, 0o755); err != nil {
 		return fmt.Errorf("creating data directory: %w", err)
+	}
+
+	// Generate CA bundle for apps that need to trust the local CA
+	if m.cfg.Routing.HTTPS.Enabled && mergedValues["ca_cert_path"] != "" {
+		if err := generateCABundle(mergedValues["ca_cert_path"], dataDir); err != nil {
+			slog.Warn("Failed to generate CA bundle", "app", appName, "error", err)
+		}
 	}
 
 	// Write rendered files
@@ -743,4 +769,28 @@ func executeHooks(hooks []Hook, values map[string]string, runner *exec.Runner) {
 			}
 		}
 	}
+}
+
+// generateCABundle creates a CA certificate bundle that includes the system CAs
+// plus the homelabctl local CA. This allows containers to trust the self-signed
+// wildcard certificate used for local HTTPS routing.
+func generateCABundle(caCertPath, dataDir string) error {
+	systemBundle, err := os.ReadFile("/etc/ssl/certs/ca-certificates.crt")
+	if err != nil {
+		return fmt.Errorf("reading system CA bundle: %w", err)
+	}
+	localCA, err := os.ReadFile(caCertPath)
+	if err != nil {
+		return fmt.Errorf("reading local CA cert: %w", err)
+	}
+
+	bundlePath := filepath.Join(dataDir, "ca-bundle.crt")
+	bundle := make([]byte, 0, len(systemBundle)+1+len(localCA))
+	bundle = append(bundle, systemBundle...)
+	bundle = append(bundle, '\n')
+	bundle = append(bundle, localCA...)
+	if err := os.WriteFile(bundlePath, bundle, 0o644); err != nil {
+		return fmt.Errorf("writing CA bundle: %w", err)
+	}
+	return nil
 }

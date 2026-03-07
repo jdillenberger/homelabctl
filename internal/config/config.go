@@ -197,7 +197,7 @@ func DefaultConfig() *Config {
 			Provider: "traefik",
 			Domain:   "",
 			HTTPS: HTTPSConfig{
-				Enabled: false,
+				Enabled: true,
 			},
 		},
 	}
