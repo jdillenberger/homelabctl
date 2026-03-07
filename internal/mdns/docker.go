@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	routerRuleRE = regexp.MustCompile(`^traefik\.http\.routers\..+\.rule$`)
+	routerRuleRE  = regexp.MustCompile(`^traefik\.http\.routers\..+\.rule$`)
 	hostExtractRE = regexp.MustCompile("Host\\(`([^`]+)`\\)")
 )
 

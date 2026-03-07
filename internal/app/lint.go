@@ -59,18 +59,18 @@ type composeFile struct {
 }
 
 type composeService struct {
-	Image         string            `yaml:"image"`
-	Build         interface{}       `yaml:"build"`
-	Restart       string            `yaml:"restart"`
-	ContainerName string            `yaml:"container_name"`
-	SecurityOpt   []string          `yaml:"security_opt"`
-	Logging       *composeLogging   `yaml:"logging"`
-	Healthcheck   *composeHC        `yaml:"healthcheck"`
-	MemLimit      string            `yaml:"mem_limit"`
-	PidsLimit     interface{}       `yaml:"pids_limit"`
-	Deploy        *composeDeploy    `yaml:"deploy"`
-	CapDrop       []string          `yaml:"cap_drop"`
-	ReadOnly      *bool             `yaml:"read_only"`
+	Image         string          `yaml:"image"`
+	Build         interface{}     `yaml:"build"`
+	Restart       string          `yaml:"restart"`
+	ContainerName string          `yaml:"container_name"`
+	SecurityOpt   []string        `yaml:"security_opt"`
+	Logging       *composeLogging `yaml:"logging"`
+	Healthcheck   *composeHC      `yaml:"healthcheck"`
+	MemLimit      string          `yaml:"mem_limit"`
+	PidsLimit     interface{}     `yaml:"pids_limit"`
+	Deploy        *composeDeploy  `yaml:"deploy"`
+	CapDrop       []string        `yaml:"cap_drop"`
+	ReadOnly      *bool           `yaml:"read_only"`
 }
 
 type composeLogging struct {

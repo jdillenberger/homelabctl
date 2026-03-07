@@ -103,10 +103,10 @@ func validateComponent(component string) error {
 }
 
 var serviceInstallCmd = &cobra.Command{
-	Use:   "install [component]",
-	Short: "Install the homelabctl systemd service",
-	Long:  "Install a systemd service. Optionally specify a component (dashboard, mdns, scheduler).",
-	Args:  cobra.MaximumNArgs(1),
+	Use:       "install [component]",
+	Short:     "Install the homelabctl systemd service",
+	Long:      "Install a systemd service. Optionally specify a component (dashboard, mdns, scheduler).",
+	Args:      cobra.MaximumNArgs(1),
 	ValidArgs: validComponents,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var component string
@@ -147,10 +147,10 @@ var serviceInstallCmd = &cobra.Command{
 }
 
 var serviceUninstallCmd = &cobra.Command{
-	Use:   "uninstall [component]",
-	Short: "Uninstall the homelabctl systemd service",
-	Long:  "Uninstall a systemd service. Optionally specify a component (dashboard, mdns, scheduler).",
-	Args:  cobra.MaximumNArgs(1),
+	Use:       "uninstall [component]",
+	Short:     "Uninstall the homelabctl systemd service",
+	Long:      "Uninstall a systemd service. Optionally specify a component (dashboard, mdns, scheduler).",
+	Args:      cobra.MaximumNArgs(1),
 	ValidArgs: validComponents,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var component string
@@ -181,10 +181,10 @@ var serviceUninstallCmd = &cobra.Command{
 }
 
 var serviceStatusCmd = &cobra.Command{
-	Use:   "status [component]",
-	Short: "Show homelabctl service status",
-	Long:  "Show systemd service status. Optionally specify a component (dashboard, mdns, scheduler).",
-	Args:  cobra.MaximumNArgs(1),
+	Use:       "status [component]",
+	Short:     "Show homelabctl service status",
+	Long:      "Show systemd service status. Optionally specify a component (dashboard, mdns, scheduler).",
+	Args:      cobra.MaximumNArgs(1),
 	ValidArgs: validComponents,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var component string

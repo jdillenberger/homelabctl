@@ -12,11 +12,11 @@ import (
 // RoutingMeta holds per-template routing configuration.
 type RoutingMeta struct {
 	Enabled       *bool  `yaml:"enabled"`        // nil = inherit global (true), false = no routing
-	Subdomain     string `yaml:"subdomain"`       // override (default: app name)
-	Hostname      string `yaml:"hostname"`        // full hostname override (e.g. "nextcloud" → nextcloud.local)
-	ContainerPort int    `yaml:"container_port"`  // which port to proxy to (default: first port's Container)
-	Websocket     bool   `yaml:"websocket"`       // enable WS upgrade
-	KeepPorts     *bool  `yaml:"keep_ports"`      // nil = keep both (default), false = remove direct port bindings
+	Subdomain     string `yaml:"subdomain"`      // override (default: app name)
+	Hostname      string `yaml:"hostname"`       // full hostname override (e.g. "nextcloud" → nextcloud.local)
+	ContainerPort int    `yaml:"container_port"` // which port to proxy to (default: first port's Container)
+	Websocket     bool   `yaml:"websocket"`      // enable WS upgrade
+	KeepPorts     *bool  `yaml:"keep_ports"`     // nil = keep both (default), false = remove direct port bindings
 }
 
 // AppMeta holds metadata from a template's app.yaml.

@@ -75,12 +75,12 @@ func nextcloudTestValues() map[string]string {
 		"data_dir": "/opt/homelabctl/data/nextcloud",
 		"timezone": "UTC", "db_name": "nextcloud",
 		"db_user": "nextcloud", "db_user_password": "testpass",
-		"db_password": "testrootpass",
-		"nextcloud_admin_user": "admin",
+		"db_password":              "testrootpass",
+		"nextcloud_admin_user":     "admin",
 		"nextcloud_admin_password": "adminpass",
-		"routing_domain": "nextcloud.x1.local",
-		"routing_url": "http://nextcloud.x1.local",
-		"https_enabled": "false",
-		"ca_cert_path": "",
+		"routing_domain":           "nextcloud.x1.local",
+		"routing_url":              "http://nextcloud.x1.local",
+		"https_enabled":            "false",
+		"ca_cert_path":             "",
 	}
 }
