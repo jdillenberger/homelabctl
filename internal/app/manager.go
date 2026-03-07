@@ -312,6 +312,13 @@ func (m *Manager) Deploy(appName string, opts DeployOptions) error {
 		return fmt.Errorf("creating data directory: %w", err)
 	}
 
+	// Create volumes symlink for transparency
+	volumesLink := filepath.Join(appDir, "volumes")
+	_ = os.Remove(volumesLink)
+	if err := os.Symlink(dataDir, volumesLink); err != nil {
+		slog.Warn("Failed to create volumes symlink", "app", appName, "error", err)
+	}
+
 	// Generate CA bundle for apps that need to trust the local CA
 	if m.cfg.Routing.HTTPS.Enabled && mergedValues["ca_cert_path"] != "" {
 		if err := generateCABundle(mergedValues["ca_cert_path"], dataDir); err != nil {
