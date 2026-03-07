@@ -186,7 +186,9 @@ func (m *Manager) Deploy(appName string, opts DeployOptions) error {
 	mergedValues["data_dir"] = m.cfg.DataPath(appName)
 	mergedValues["app_name"] = appName
 	mergedValues["network"] = m.cfg.Docker.DefaultNetwork
-	mergedValues["web_port"] = strconv.Itoa(m.cfg.Network.WebPort)
+	if mergedValues["web_port"] == "" {
+		mergedValues["web_port"] = strconv.Itoa(m.cfg.Network.WebPort)
+	}
 
 	// Auto-populate HTTPS values for traefik
 	if appName == "traefik" && m.cfg.Routing.HTTPS.Enabled {

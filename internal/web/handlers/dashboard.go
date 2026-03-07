@@ -234,11 +234,11 @@ func (h *Handler) DashboardPeers(c echo.Context) error {
 	}
 
 	if len(peers) == 0 {
-		return c.HTML(http.StatusOK, `<div class="empty-state"><p>No other servers discovered.</p><p><a href="/fleet">Fleet config &rarr;</a></p></div>`)
+		return c.HTML(http.StatusOK, "")
 	}
 
 	var buf strings.Builder
-	buf.WriteString(`<div class="peers-compact">`)
+	buf.WriteString(`<article><header><strong>Fleet</strong></header><div class="peers-compact">`)
 	for _, p := range peers {
 		fmt.Fprintf(&buf, `<a href="%s" target="_blank" rel="noopener" class="peer-chip"><span class="peer-dot"></span>%s`,
 			html.EscapeString(p.DashURL), html.EscapeString(p.Hostname))
@@ -248,7 +248,7 @@ func (h *Handler) DashboardPeers(c echo.Context) error {
 		buf.WriteString(`</a>`)
 	}
 	buf.WriteString(`</div>`)
-	buf.WriteString(`<footer><a href="/fleet">Fleet details &rarr;</a></footer>`)
+	buf.WriteString(`<footer><a href="/fleet">Fleet details &rarr;</a></footer></article>`)
 
 	return c.HTML(http.StatusOK, buf.String())
 }

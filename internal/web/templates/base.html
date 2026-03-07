@@ -21,38 +21,66 @@
            ═══════════════════════════════════════ */
         :root {
             --nav-bg: {{if .NavColor}}{{.NavColor}}{{else}}#02638b{{end}};
-            --sidebar-width: 300px;
         }
 
         /* ═══════════════════════════════════════
            Navigation
            ═══════════════════════════════════════ */
-        nav {
+        .nav-brand {
             background: var(--nav-bg);
-            padding: 0.75rem 1.5rem;
+            padding: 0.6rem 0;
         }
-        nav ul {
+        .nav-brand > .container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+        .nav-menu {
+            background: color-mix(in srgb, var(--nav-bg) 85%, #000);
+            padding: 0;
+            border-bottom: 1px solid color-mix(in srgb, var(--nav-bg) 70%, #000);
+        }
+        .nav-menu > .container {
+            display: flex;
+            align-items: center;
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+        .nav-menu ul {
             list-style: none;
             margin: 0;
             padding: 0;
+            display: flex;
+            align-items: center;
         }
-        nav a {
-            color: #e0e0e0;
+        .nav-menu a {
+            display: block;
+            color: #b0c4ce;
             text-decoration: none;
+            padding: 0.55rem 1rem;
+            font-size: 0.85rem;
+            border-radius: 4px;
+            transition: color 0.15s, background 0.15s;
         }
-        nav a:hover {
+        .nav-menu a:hover {
             color: #fff;
+            background: rgba(255,255,255,0.08);
         }
-        .nav-links a.active {
+        .nav-menu a.active {
             color: #fff;
-            border-bottom: 2px solid var(--pico-primary, #1095c1);
-            padding-bottom: 0.15rem;
+            background: rgba(255,255,255,0.12);
         }
         .logo {
             font-weight: 600;
-            font-size: 1rem;
-            color: #ccc !important;
+            font-size: 1.05rem;
+            color: #e0e0e0 !important;
             letter-spacing: 0.02em;
+            text-decoration: none;
+        }
+        .logo:hover {
+            color: #fff !important;
         }
         .nav-toggle {
             display: none;
@@ -71,109 +99,17 @@
             background: #ccc;
             border-radius: 1px;
         }
-        .stats-toggle {
-            background: none;
-            border: 1px solid #555;
-            color: #9e9e9e;
-            cursor: pointer;
-            font-size: 0.75rem;
-            padding: 0.2rem 0.6rem;
-            border-radius: 4px;
-            line-height: 1.4;
-            white-space: nowrap;
-        }
-        .stats-toggle:hover {
-            border-color: #fff;
-            color: #fff;
-        }
         .theme-toggle {
             background: none;
             border: none;
             cursor: pointer;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             padding: 0.25rem 0.5rem;
             line-height: 1;
+            color: #b0c4ce;
         }
-
-        /* ═══════════════════════════════════════
-           Sidebar
-           ═══════════════════════════════════════ */
-        .sidebar-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.4);
-            z-index: 100;
-        }
-        .sidebar-overlay.open {
-            display: block;
-        }
-        .sidebar {
-            position: fixed;
-            top: 0;
-            right: 0;
-            width: var(--sidebar-width);
-            height: 100%;
-            background: var(--pico-card-background-color, #fff);
-            border-left: 1px solid var(--pico-muted-border-color, #e0e0e0);
-            z-index: 101;
-            transform: translateX(100%);
-            transition: transform 0.25s ease;
-            overflow-y: auto;
-            padding: 1rem 1.25rem;
-        }
-        .sidebar.open {
-            transform: translateX(0);
-        }
-        .sidebar h4 {
-            margin: 0 0 0.75rem;
-            font-size: 0.9rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .sidebar-close {
-            background: none;
-            border: none;
-            font-size: 1.2rem;
-            cursor: pointer;
-            color: var(--pico-muted-color, #666);
-            padding: 0;
-            line-height: 1;
-        }
-        .sidebar-section {
-            margin-bottom: 1.5rem;
-        }
-        .sidebar-section-title {
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--pico-muted-color, #666);
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-        }
-        .sidebar-stats {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.5rem;
-        }
-        .sidebar-stat {
-            text-align: center;
-            padding: 0.5rem;
-            border-radius: 6px;
-            background: var(--pico-background-color, #f8f9fa);
-            border: 1px solid var(--pico-muted-border-color, #e0e0e0);
-        }
-        .sidebar-stat .value {
-            font-size: 1.25rem;
-            font-weight: bold;
-        }
-        .sidebar-stat .label {
-            font-size: 0.7rem;
-            color: var(--pico-muted-color, #666);
+        .theme-toggle:hover {
+            color: #fff;
         }
 
         /* ═══════════════════════════════════════
@@ -181,18 +117,65 @@
            ═══════════════════════════════════════ */
         .apps-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
             gap: 1rem;
             margin-bottom: 1.5rem;
         }
         .app-card {
-            padding: 1rem;
+            display: block;
+            padding: 1.25rem;
             border-radius: 8px;
             background: var(--pico-card-background-color, #fff);
             border: 1px solid var(--pico-muted-border-color, #e0e0e0);
+            border-left: 3px solid var(--pico-primary, #1095c1);
+            color: inherit;
+            transition: border-color 0.15s, box-shadow 0.15s;
         }
-        .app-card h4 {
+        .app-card:hover {
+            border-left-color: var(--pico-primary-hover, #08769b);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .app-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             margin-bottom: 0.5rem;
+        }
+        .app-card-name {
+            font-weight: 700;
+            font-size: 1.05rem;
+            text-decoration: none;
+            color: inherit;
+        }
+        .app-card-name:hover {
+            color: var(--pico-primary, #1095c1);
+        }
+        .app-card-manage {
+            margin-left: auto;
+            font-size: 0.75rem;
+            color: var(--pico-muted-color, #888);
+            text-decoration: none;
+        }
+        .app-card-manage:hover {
+            color: var(--pico-primary, #1095c1);
+        }
+        .app-card-desc {
+            font-size: 0.85rem;
+            color: var(--pico-muted-color, #666);
+            margin-bottom: 0.5rem;
+            line-height: 1.4;
+        }
+        .app-card-meta {
+            display: flex;
+            gap: 0.75rem;
+            font-size: 0.78rem;
+            color: var(--pico-muted-color, #888);
+        }
+        .dashboard-extra {
+            margin-top: 1.5rem;
+        }
+        .dashboard-extra:empty {
+            display: none;
         }
 
         /* ═══════════════════════════════════════
@@ -331,6 +314,27 @@
         .app-search input {
             margin-bottom: 0;
         }
+        code {
+            cursor: pointer;
+            position: relative;
+        }
+        code:hover {
+            opacity: 0.8;
+        }
+        code.copied::after {
+            content: 'Copied!';
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--pico-color, #333);
+            color: var(--pico-background-color, #fff);
+            font-size: 0.65rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            white-space: nowrap;
+            pointer-events: none;
+        }
         .htmx-indicator {
             opacity: 0;
             transition: opacity 200ms ease-in;
@@ -354,16 +358,20 @@
             flex: 1;
         }
         footer {
-            display: flex;
-            align-items: center;
-            padding: 0 1rem;
-            height: 30px;
-            font-size: 0.75rem;
             background: var(--pico-card-background-color, #f8f9fa);
             border-top: 1px solid var(--pico-muted-border-color, #e0e0e0);
-            color: #9e9e9e;
             margin-top: auto;
+            padding: 0;
+        }
+        footer > .container {
+            display: flex;
+            align-items: center;
+            height: 30px;
+            font-size: 0.75rem;
+            color: #9e9e9e;
             gap: 1rem;
+            padding-top: 0;
+            padding-bottom: 0;
         }
         .footer-stats {
             display: flex;
@@ -426,20 +434,16 @@
             .nav-toggle {
                 display: flex;
             }
-            .nav-links {
+            .nav-menu ul {
                 display: none !important;
                 flex-direction: column;
                 width: 100%;
-                order: 10;
             }
-            .nav-links.open {
+            .nav-menu ul.open {
                 display: flex !important;
             }
-            nav {
-                flex-wrap: wrap;
-            }
-            .sidebar {
-                width: 100%;
+            .nav-menu a {
+                padding: 0.6rem 1rem;
             }
             footer {
                 font-size: 0.65rem;
@@ -456,70 +460,46 @@
     </style>
 </head>
 <body>
-    <nav>
-        <ul>
-            <li><a href="/" class="logo">{{.Hostname}}.{{.Domain}}</a></li>
-            <li>
+    <div class="nav-brand">
+        <div class="container">
+            <a href="/" class="logo">{{.Hostname}}.{{.Domain}}</a>
+            <div>
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode" id="theme-btn"></button>
                 <button class="nav-toggle" onclick="toggleNav()" aria-label="Menu">
                     <span class="nav-toggle-bar"></span>
                     <span class="nav-toggle-bar"></span>
                     <span class="nav-toggle-bar"></span>
                 </button>
-            </li>
-        </ul>
-        <ul class="nav-links">
-            <li><a href="/">Portal</a></li>
-            <li><a href="/apps">Apps</a></li>
-            <li><a href="/backups">Backups</a></li>
-            <li><a href="/alerts">Alerts</a></li>
-            <li><a href="/fleet">Fleet</a></li>
-            <li><a href="/settings">Settings</a></li>
-        </ul>
-        <ul>
-            <li>
-                <button class="stats-toggle" onclick="toggleSidebar()" title="System stats">Stats</button>
-            </li>
-            <li><button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode" id="theme-btn"></button></li>
-        </ul>
+            </div>
+        </div>
+    </div>
+    <nav class="nav-menu">
+        <div class="container">
+            <ul>
+                <li><a href="/">Portal</a></li>
+                <li><a href="/apps">Apps</a></li>
+                <li><a href="/backups">Backups</a></li>
+                <li><a href="/alerts">Alerts</a></li>
+                <li><a href="/fleet">Fleet</a></li>
+                <li><a href="/settings">Settings</a></li>
+            </ul>
+        </div>
     </nav>
-
-    <!-- Stats sidebar -->
-    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
-    <aside class="sidebar" id="stats-sidebar">
-        <h4>
-            System
-            <button class="sidebar-close" onclick="toggleSidebar()">&times;</button>
-        </h4>
-
-        <div class="sidebar-section">
-            <div class="sidebar-section-title">Resources</div>
-            <div id="sidebar-stats" hx-get="/stats/partial" hx-trigger="load, every 10s" hx-swap="innerHTML">
-            </div>
-        </div>
-
-        <div class="sidebar-section">
-            <div class="sidebar-section-title">Recent Alerts</div>
-            <div id="sidebar-alerts" hx-get="/alerts/partial" hx-trigger="load, every 30s" hx-swap="innerHTML">
-            </div>
-        </div>
-
-        <div style="margin-top:1rem;">
-            <a href="/alerts" style="font-size:0.85rem;">View all alerts &rarr;</a>
-        </div>
-    </aside>
 
     <main class="container">
         {{block "content" .}}{{end}}
     </main>
 
     <footer>
-        <div class="footer-stats" hx-get="/stats/dashboard" hx-trigger="load, every 10s" hx-swap="innerHTML"></div>
-        <div class="footer-sep"></div>
-        <div class="footer-info">{{.Hostname}}.{{.Domain}}</div>
-        <div class="footer-sep"></div>
-        <div class="footer-info" hx-get="/stats/compact" hx-trigger="load, every 10s" hx-swap="innerHTML"></div>
-        <div style="flex:1;"></div>
-        <div class="footer-brand">homelabctl</div>
+        <div class="container">
+            <div class="footer-stats" hx-get="/stats/dashboard" hx-trigger="load, every 10s" hx-swap="innerHTML"></div>
+            <div class="footer-sep"></div>
+            <div class="footer-info">{{.Hostname}}.{{.Domain}}</div>
+            <div class="footer-sep"></div>
+            <div class="footer-info" hx-get="/stats/compact" hx-trigger="load, every 10s" hx-swap="innerHTML"></div>
+            <div style="flex:1;"></div>
+            <div class="footer-brand">homelabctl</div>
+        </div>
     </footer>
     <script>
         function updateThemeBtn() {
@@ -536,18 +516,36 @@
         updateThemeBtn();
 
         function toggleNav() {
-            document.querySelector('.nav-links').classList.toggle('open');
+            document.querySelector('.nav-menu ul').classList.toggle('open');
         }
 
-        function toggleSidebar() {
-            document.getElementById('stats-sidebar').classList.toggle('open');
-            document.getElementById('sidebar-overlay').classList.toggle('open');
+        // Click-to-copy for code elements
+        function copyText(text) {
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text);
+            } else {
+                var ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+            }
         }
+        document.addEventListener('click', function(e) {
+            var code = e.target.closest('code');
+            if (!code) return;
+            copyText(code.textContent.trim());
+            code.classList.add('copied');
+            setTimeout(function() { code.classList.remove('copied'); }, 1200);
+        });
 
         // Active nav link
         (function() {
             var path = window.location.pathname;
-            document.querySelectorAll('.nav-links a').forEach(function(a) {
+            document.querySelectorAll('.nav-menu a').forEach(function(a) {
                 var href = a.getAttribute('href');
                 if (href === '/' ? path === '/' : path.startsWith(href)) {
                     a.classList.add('active');

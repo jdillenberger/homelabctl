@@ -10,24 +10,20 @@
 </div>
 {{end}}
 
-<h3 class="section-title" style="margin-top:0;">Apps</h3>
 {{if .Apps}}
 <div class="apps-grid">
     {{range .Apps}}
     <div class="app-card">
-        <div style="display:flex; align-items:center; justify-content:space-between;">
-            <h4 style="margin:0;">
-                {{if .RoutingURL}}<a href="{{.RoutingURL}}" target="_blank" rel="noopener">{{.Name}}</a>
-                {{else if .AccessURL}}<a href="{{.AccessURL}}" target="_blank" rel="noopener">{{.Name}}</a>
-                {{else}}<a href="/apps/{{.Name}}">{{.Name}}</a>{{end}}
-            </h4>
+        <div class="app-card-header">
+            <a class="app-card-name" {{if or .RoutingURL .AccessURL}}href="{{if .RoutingURL}}{{.RoutingURL}}{{else}}{{.AccessURL}}{{end}}" target="_blank" rel="noopener"{{else}}href="/apps/{{.Name}}"{{end}}>{{.Name}}</a>
             <span id="health-{{.Name}}" class="badge badge-available">...</span>
         </div>
-        {{if .Description}}<p style="margin:0.5rem 0 0.25rem;"><small>{{.Description}}</small></p>{{end}}
-        <p style="margin:0;">
-            {{if .Version}}<small>v{{.Version}}</small>{{end}}
-            {{if .DisplayURL}}<small> &middot; <a href="{{if .RoutingURL}}{{.RoutingURL}}{{else}}{{.AccessURL}}{{end}}" target="_blank" rel="noopener">{{.DisplayURL}}</a></small>{{end}}
-        </p>
+        {{if .Description}}<div class="app-card-desc">{{.Description}}</div>{{end}}
+        <div class="app-card-meta">
+            {{if .Version}}<span>v{{.Version}}</span>{{end}}
+            {{if .DisplayURL}}<span>{{.DisplayURL}}</span>{{end}}
+            <a href="/apps/{{.Name}}" class="app-card-manage">manage &rarr;</a>
+        </div>
     </div>
     {{end}}
 </div>
@@ -43,13 +39,12 @@
 </article>
 {{end}}
 
-<!-- Fleet + Alerts two-column -->
-<div class="grid" style="margin-top:1.5rem;">
-    <article>
-        <header><strong>Fleet</strong></header>
-        <div id="peers-section" hx-get="/dashboard/peers" hx-trigger="load" hx-swap="innerHTML">
-        </div>
-    </article>
+<!-- Fleet + Alerts: loaded async, hidden when empty -->
+<div id="dashboard-fleet" class="dashboard-extra" hx-get="/dashboard/peers" hx-trigger="load" hx-swap="innerHTML">
+</div>
+
+{{if gt .ActiveAlertCount 0}}
+<div id="dashboard-alerts" class="dashboard-extra">
     <article>
         <header><strong>Recent Alerts</strong></header>
         <div hx-get="/alerts/partial" hx-trigger="load, every 30s" hx-swap="innerHTML">
@@ -57,4 +52,5 @@
         <footer><a href="/alerts">View all alerts &rarr;</a></footer>
     </article>
 </div>
+{{end}}
 {{end}}
