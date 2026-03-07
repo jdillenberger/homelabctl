@@ -5,25 +5,27 @@
 {{define "content"}}
 <h2>Backups</h2>
 
-<h3 class="section-title">Backup Configuration</h3>
-<table>
-    <tr>
-        <td><strong>Status</strong></td>
-        <td>
-            {{if .Enabled}}<span class="badge badge-running">enabled</span>
-            {{else}}<span class="badge badge-stopped">disabled</span>{{end}}
-        </td>
-    </tr>
-    <tr><td><strong>Borg Repository</strong></td><td>{{.BorgRepo}}</td></tr>
-    <tr><td><strong>Schedule</strong></td><td>{{.Schedule}}</td></tr>
-    <tr><td><strong>Retention (daily)</strong></td><td>{{.Retention.KeepDaily}}</td></tr>
-    <tr><td><strong>Retention (weekly)</strong></td><td>{{.Retention.KeepWeekly}}</td></tr>
-    <tr><td><strong>Retention (monthly)</strong></td><td>{{.Retention.KeepMonthly}}</td></tr>
-</table>
+<article>
+    <header><strong>Configuration</strong></header>
+    <table>
+        <tr>
+            <td><strong>Status</strong></td>
+            <td>
+                {{if .Enabled}}<span class="badge badge-running">enabled</span>
+                {{else}}<span class="badge badge-stopped">disabled</span>{{end}}
+            </td>
+        </tr>
+        <tr><td><strong>Borg Repository</strong></td><td>{{.BorgRepo}}</td></tr>
+        <tr><td><strong>Schedule</strong></td><td>{{.Schedule}}</td></tr>
+        <tr><td><strong>Retention (daily)</strong></td><td>{{.Retention.KeepDaily}}</td></tr>
+        <tr><td><strong>Retention (weekly)</strong></td><td>{{.Retention.KeepWeekly}}</td></tr>
+        <tr><td><strong>Retention (monthly)</strong></td><td>{{.Retention.KeepMonthly}}</td></tr>
+    </table>
+</article>
 
-<h3 class="section-title">Apps with Backup Support</h3>
-{{if .Apps}}
-<div class="overflow-auto">
+<article>
+    <header><strong>Apps with Backup Support</strong></header>
+    {{if .Apps}}
     <table>
         <thead>
             <tr>
@@ -40,22 +42,27 @@
             {{end}}
         </tbody>
     </table>
-</div>
-{{else}}
-<p>No deployed apps found.</p>
-{{end}}
-
-<h3 class="section-title">Actions</h3>
-<div id="backup-result"></div>
-<div class="quick-actions">
-    {{if .Enabled}}
-    <button hx-post="/backups/create" hx-target="#backup-result" hx-swap="innerHTML">
-        Trigger Manual Backup
-    </button>
     {{else}}
-    <button disabled title="Enable backups in config to trigger manual backup">
-        Trigger Manual Backup (disabled)
-    </button>
+    <div class="empty-state">
+        <strong>No deployed apps found</strong>
+        <p>Deploy apps to enable backup support.</p>
+    </div>
     {{end}}
-</div>
+</article>
+
+<article>
+    <header><strong>Actions</strong></header>
+    <div id="backup-result"></div>
+    <div class="quick-actions">
+        {{if .Enabled}}
+        <button hx-post="/backups/create" hx-target="#backup-result" hx-swap="innerHTML">
+            Trigger Manual Backup
+        </button>
+        {{else}}
+        <button disabled title="Enable backups in config to trigger manual backup">
+            Trigger Manual Backup (disabled)
+        </button>
+        {{end}}
+    </div>
+</article>
 {{end}}

@@ -3,48 +3,76 @@
 {{define "title"}}{{.App.Name}} - homelabctl{{end}}
 
 {{define "content"}}
+<nav aria-label="breadcrumb">
+    <ul>
+        <li><a href="/">Portal</a></li>
+        <li><a href="/apps">Apps</a></li>
+        <li>{{.App.Name}}</li>
+    </ul>
+</nav>
+
 <h2>{{.App.Name}}</h2>
 
 <div class="grid">
-    <div>
-        <article>
-            <header>App Details</header>
-            <table>
-                <tr><td><strong>Name</strong></td><td>{{.App.Name}}</td></tr>
-                <tr><td><strong>Template</strong></td><td>{{.App.Template}}</td></tr>
-                <tr><td><strong>Version</strong></td><td>{{.App.Version}}</td></tr>
-                <tr><td><strong>Deployed</strong></td><td>{{.App.DeployedAt.Format "2006-01-02 15:04:05"}}</td></tr>
-            </table>
-        </article>
-    </div>
-    <div>
-        <article>
-            <header>Status</header>
-            <div id="app-status">
-                {{if .Status}}
-                <pre>{{.Status}}</pre>
-                {{else}}
-                <p>Unable to retrieve status.</p>
+    <article>
+        <header><strong>Details</strong></header>
+        <table>
+            <tr><td><strong>Name</strong></td><td>{{.App.Name}}</td></tr>
+            <tr><td><strong>Template</strong></td><td>{{.App.Template}}</td></tr>
+            <tr><td><strong>Version</strong></td><td>{{.App.Version}}</td></tr>
+            <tr><td><strong>Deployed</strong></td><td>{{.App.DeployedAt.Format "2006-01-02 15:04:05"}}</td></tr>
+        </table>
+    </article>
+    <article>
+        <header><strong>Containers</strong></header>
+        {{if .Containers}}
+        <table>
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>State</th>
+                    <th>Status</th>
+                    <th>Ports</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Containers}}
+                <tr>
+                    <td>{{.Service}}</td>
+                    <td>
+                        {{if .Running}}<span class="badge badge-running">running</span>
+                        {{else}}<span class="badge badge-stopped">{{.State}}</span>{{end}}
+                    </td>
+                    <td><small>{{.Status}}</small></td>
+                    <td><small>{{.Ports}}</small></td>
+                </tr>
                 {{end}}
-            </div>
-        </article>
+            </tbody>
+        </table>
+        {{else if .StatusRaw}}
+        <pre style="font-size:0.8rem;overflow-x:auto;">{{.StatusRaw}}</pre>
+        {{else}}
+        <div class="empty-state">
+            <p>Unable to retrieve container status.</p>
+        </div>
+        {{end}}
+    </article>
+</div>
+
+<article>
+    <header><strong>Actions</strong></header>
+    <div id="action-result"></div>
+    <div class="actions" style="margin-top:0;">
+        <button hx-post="/apps/{{.App.Name}}/start" hx-target="#action-result" hx-swap="innerHTML">
+            Start
+        </button>
+        <button hx-post="/apps/{{.App.Name}}/stop" hx-target="#action-result" hx-swap="innerHTML" class="secondary">
+            Stop
+        </button>
+        <button hx-post="/apps/{{.App.Name}}/restart" hx-target="#action-result" hx-swap="innerHTML" class="contrast">
+            Restart
+        </button>
+        <a href="/apps/{{.App.Name}}/logs" role="button" class="outline">View Logs</a>
     </div>
-</div>
-
-<h3 class="section-title">Actions</h3>
-<div id="action-result"></div>
-<div class="actions">
-    <button hx-post="/apps/{{.App.Name}}/start" hx-target="#action-result" hx-swap="innerHTML">
-        Start
-    </button>
-    <button hx-post="/apps/{{.App.Name}}/stop" hx-target="#action-result" hx-swap="innerHTML" class="secondary">
-        Stop
-    </button>
-    <button hx-post="/apps/{{.App.Name}}/restart" hx-target="#action-result" hx-swap="innerHTML" class="contrast">
-        Restart
-    </button>
-    <a href="/apps/{{.App.Name}}/logs" role="button" class="outline">View Logs</a>
-</div>
-
-<p style="margin-top: 1rem;"><a href="/apps">&larr; Back to Apps</a></p>
+</article>
 {{end}}

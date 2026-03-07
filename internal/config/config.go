@@ -25,6 +25,7 @@ type Config struct {
 	TemplatesDir string `mapstructure:"templates_dir" yaml:"templates_dir"`
 
 	Network NetworkConfig `mapstructure:"network" yaml:"network"`
+	Web     WebConfig     `mapstructure:"web" yaml:"web"`
 	Docker  DockerConfig  `mapstructure:"docker" yaml:"docker"`
 	MDNS    MDNSConfig    `mapstructure:"mdns" yaml:"mdns"`
 	Backup  BackupConfig  `mapstructure:"backup" yaml:"backup"`
@@ -53,6 +54,10 @@ type HTTPSConfig struct {
 type NetworkConfig struct {
 	Domain  string `mapstructure:"domain" yaml:"domain"`
 	WebPort int    `mapstructure:"web_port" yaml:"web_port"`
+}
+
+type WebConfig struct {
+	NavColor string `mapstructure:"nav_color" yaml:"nav_color"`
 }
 
 type DockerConfig struct {

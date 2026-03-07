@@ -12,6 +12,7 @@ import (
 type BasePage struct {
 	Hostname string
 	Domain   string
+	NavColor string
 }
 
 // Handler holds shared dependencies for all route handlers.
@@ -33,7 +34,11 @@ func New(cfg *config.Config, manager *app.Manager, runner *exec.Runner) *Handler
 }
 
 func (h *Handler) basePage() BasePage {
-	return BasePage{Hostname: h.cfg.Hostname, Domain: h.cfg.Network.Domain}
+	return BasePage{
+		Hostname: h.cfg.Hostname,
+		Domain:   h.cfg.Network.Domain,
+		NavColor: h.cfg.Web.NavColor,
+	}
 }
 
 // Register registers all routes on the Echo instance.
@@ -46,6 +51,7 @@ func (h *Handler) Register(e *echo.Echo) {
 	// Stats
 	e.GET("/stats/partial", h.StatsPartial)
 	e.GET("/stats/compact", h.StatsCompact)
+	e.GET("/stats/dashboard", h.StatsDashboard)
 
 	// Apps
 	e.GET("/apps", h.AppsList)

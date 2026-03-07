@@ -15,7 +15,7 @@ import (
 var FS embed.FS
 
 // shared templates that don't define "content" or "title" blocks
-var sharedTemplates = []string{"base.html", "stats_partial.html", "stats_compact.html", "alerts_partial.html"}
+var sharedTemplates = []string{"base.html", "stats_partial.html", "stats_compact.html", "stats_dashboard.html", "alerts_partial.html"}
 
 // Renderer implements echo.Renderer using html/template.
 type Renderer struct {

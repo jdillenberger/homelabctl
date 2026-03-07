@@ -34,9 +34,27 @@
 <!-- Load health badges asynchronously -->
 <div hx-get="/dashboard/health" hx-trigger="load" hx-swap="innerHTML" style="display:none;"></div>
 {{else}}
-<p>No apps deployed yet. <a href="/apps">Browse available templates</a> or run <code>homelabctl deploy &lt;app&gt;</code>.</p>
+<article>
+    <div class="empty-state">
+        <strong>No apps deployed yet</strong>
+        <p>Browse the <a href="/apps">template catalog</a> or deploy from CLI:</p>
+        <p><code>homelabctl deploy &lt;app&gt;</code></p>
+    </div>
+</article>
 {{end}}
 
-<!-- Fleet peers loaded asynchronously -->
-<div id="peers-section" hx-get="/dashboard/peers" hx-trigger="load" hx-swap="innerHTML"></div>
+<!-- Fleet + Alerts two-column -->
+<div class="grid" style="margin-top:1.5rem;">
+    <article>
+        <header><strong>Fleet</strong></header>
+        <div id="peers-section" hx-get="/dashboard/peers" hx-trigger="load" hx-swap="innerHTML">
+        </div>
+    </article>
+    <article>
+        <header><strong>Recent Alerts</strong></header>
+        <div hx-get="/alerts/partial" hx-trigger="load, every 30s" hx-swap="innerHTML">
+        </div>
+        <footer><a href="/alerts">View all alerts &rarr;</a></footer>
+    </article>
+</div>
 {{end}}

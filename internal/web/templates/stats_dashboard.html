@@ -1,0 +1,15 @@
+<div class="footer-stat">
+    <span class="footer-stat-label">CPU</span>
+    <span class="footer-stat-bar"><span class="footer-stat-fill" style="width:{{printf "%.0f" .CPUPercent}}%"></span></span>
+    <span class="footer-stat-value">{{printf "%.0f" .CPUPercent}}%</span>
+</div>
+<div class="footer-stat">
+    <span class="footer-stat-label">MEM</span>
+    <span class="footer-stat-bar"><span class="footer-stat-fill" style="width:{{printf "%.0f" .MemPercent}}%"></span></span>
+    <span class="footer-stat-value">{{printf "%.0f" .MemPercent}}%</span>
+</div>
+<div class="footer-stat">
+    <span class="footer-stat-label">DISK</span>
+    <span class="footer-stat-bar"><span class="footer-stat-fill" style="width:{{printf "%.0f" .DiskPercent}}%"></span></span>
+    <span class="footer-stat-value">{{printf "%.0f" .DiskPercent}}%</span>
+</div>

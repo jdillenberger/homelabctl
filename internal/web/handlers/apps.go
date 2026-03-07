@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 
@@ -17,11 +19,21 @@ type AppsListData struct {
 	DeployedSet  map[string]bool
 }
 
+// ContainerStatus represents a parsed docker compose ps row.
+type ContainerStatus struct {
+	Service string
+	State   string
+	Status  string
+	Ports   string
+	Running bool
+}
+
 // AppDetailData holds data for the app detail template.
 type AppDetailData struct {
 	BasePage
-	App    *app.DeployedApp
-	Status string
+	App        *app.DeployedApp
+	Containers []ContainerStatus
+	StatusRaw  string
 }
 
 // AppsList renders the apps list page.
@@ -57,15 +69,65 @@ func (h *Handler) AppDetail(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("app %s not found", name))
 	}
 
-	status, _ := h.manager.Status(name)
-
 	data := AppDetailData{
 		BasePage: h.basePage(),
 		App:      info,
-		Status:   status,
+	}
+
+	// Try JSON format first for structured display
+	appDir := h.cfg.AppDir(name)
+	result, err := h.compose.PSJson(appDir)
+	if err == nil && result.Stdout != "" {
+		data.Containers = parseComposeJSON(result.Stdout)
+	}
+
+	// Fallback to raw table output
+	if len(data.Containers) == 0 {
+		status, _ := h.manager.Status(name)
+		data.StatusRaw = status
 	}
 
 	return c.Render(http.StatusOK, "app_detail.html", data)
+}
+
+// parseComposeJSON parses docker compose ps --format json output.
+// Docker compose outputs one JSON object per line (NDJSON).
+func parseComposeJSON(raw string) []ContainerStatus {
+	var containers []ContainerStatus
+
+	// Docker compose ps --format json outputs one JSON object per line
+	lines := strings.Split(strings.TrimSpace(raw), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		var obj struct {
+			Service string `json:"Service"`
+			State   string `json:"State"`
+			Status  string `json:"Status"`
+			Ports   string `json:"Ports"`
+			Name    string `json:"Name"`
+		}
+		if err := json.Unmarshal([]byte(line), &obj); err != nil {
+			continue
+		}
+
+		cs := ContainerStatus{
+			Service: obj.Service,
+			State:   obj.State,
+			Status:  obj.Status,
+			Ports:   obj.Ports,
+			Running: obj.State == "running",
+		}
+		if cs.Service == "" {
+			cs.Service = obj.Name
+		}
+		containers = append(containers, cs)
+	}
+
+	return containers
 }
 
 // AppStart starts an app and returns an htmx response.

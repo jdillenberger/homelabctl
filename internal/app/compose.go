@@ -78,6 +78,11 @@ func (c *Compose) PS(projectDir string) (*exec.Result, error) {
 	return c.run(projectDir, composeDefaultTimeout, "ps", "--format", "table")
 }
 
+// PSJson returns the status of containers in JSON format for structured parsing.
+func (c *Compose) PSJson(projectDir string) (*exec.Result, error) {
+	return c.run(projectDir, composeDefaultTimeout, "ps", "--format", "json")
+}
+
 // Logs streams logs to the given writer.
 func (c *Compose) Logs(projectDir string, w io.Writer, follow bool, lines int) error {
 	bin, baseArgs := c.cmdParts()

@@ -5,9 +5,10 @@
 {{define "content"}}
 <h2>Fleet: {{.FleetName}}</h2>
 
-<h3 class="section-title">Hosts</h3>
-{{if .Hosts}}
-<div class="overflow-auto">
+<article>
+    <header><strong>Hosts</strong></header>
+    {{if .Hosts}}
+    <div class="overflow-auto">
     <table>
         <thead>
             <tr>
@@ -35,20 +36,28 @@
             {{end}}
         </tbody>
     </table>
-</div>
-{{else}}
-<p>No hosts configured.</p>
-{{end}}
+    </div>
+    {{else}}
+    <div class="empty-state">
+        <strong>No hosts configured</strong>
+        <p>Add hosts to your fleet configuration.</p>
+    </div>
+    {{end}}
+</article>
 
-<h3 class="section-title">Fleet Config</h3>
-<table>
-    <tr><td><strong>Fleet Name</strong></td><td>{{.FleetName}}</td></tr>
-    <tr><td><strong>Domain Suffix</strong></td><td>{{.DomainSuffix}}</td></tr>
-    <tr><td><strong>Host Count</strong></td><td>{{len .Hosts}}</td></tr>
-</table>
+<article>
+    <header><strong>Fleet Config</strong></header>
+    <table>
+        <tr><td><strong>Fleet Name</strong></td><td>{{.FleetName}}</td></tr>
+        <tr><td><strong>Domain Suffix</strong></td><td>{{.DomainSuffix}}</td></tr>
+        <tr><td><strong>Host Count</strong></td><td>{{len .Hosts}}</td></tr>
+    </table>
+</article>
 
-<h3 class="section-title">Actions</h3>
-<div class="quick-actions">
-    <a href="/api/fleet" role="button" class="outline">Fleet API (JSON)</a>
-</div>
+<article>
+    <header><strong>Actions</strong></header>
+    <div class="quick-actions">
+        <a href="/api/fleet" role="button" class="outline">Fleet API (JSON)</a>
+    </div>
+</article>
 {{end}}

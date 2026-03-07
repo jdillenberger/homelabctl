@@ -75,6 +75,12 @@ func (h *Handler) StatsPartial(c echo.Context) error {
 	return c.Render(http.StatusOK, "stats_partial.html", stats)
 }
 
+// StatsDashboard renders stats as dashboard cards for the portal overview.
+func (h *Handler) StatsDashboard(c echo.Context) error {
+	stats := collectStats()
+	return c.Render(http.StatusOK, "stats_dashboard.html", stats)
+}
+
 // StatsCompact renders a compact one-line stats string for the nav bar.
 func (h *Handler) StatsCompact(c echo.Context) error {
 	stats := collectStats()
