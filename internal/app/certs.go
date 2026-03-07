@@ -34,9 +34,12 @@ func (cm *CertManager) CACertPath() string {
 	return filepath.Join(cm.certsDir, "ca.crt")
 }
 
-// EnsureCerts generates the local CA (if missing) and a wildcard certificate
-// for the given domain (if missing or expired).
-func (cm *CertManager) EnsureCerts(domain string) error {
+// EnsureCerts generates the local CA (if missing) and a certificate covering
+// the given domains (if missing, expired, or domains changed).
+// When a single wildcard domain is passed (e.g. "myhost.local"), it generates
+// a wildcard cert for backward compatibility. Otherwise it generates a SAN cert
+// listing all individual domains.
+func (cm *CertManager) EnsureCerts(domains []string) error {
 	if err := os.MkdirAll(cm.certsDir, 0o755); err != nil {
 		return fmt.Errorf("creating certs directory: %w", err)
 	}
@@ -54,26 +57,32 @@ func (cm *CertManager) EnsureCerts(domain string) error {
 		}
 	}
 
-	wildcardKeyPath := filepath.Join(cm.certsDir, "wildcard.key")
-	wildcardCrtPath := filepath.Join(cm.certsDir, "wildcard.crt")
+	// Keep filenames as wildcard.crt/key for backward compat with tls.yml
+	certKeyPath := filepath.Join(cm.certsDir, "wildcard.key")
+	certCrtPath := filepath.Join(cm.certsDir, "wildcard.crt")
 
-	// Generate wildcard cert if missing, expired, or domain changed
-	needsRegen := !fileExists(wildcardKeyPath) || !fileExists(wildcardCrtPath)
+	// Generate cert if missing, expired, or domains changed
+	needsRegen := !fileExists(certKeyPath) || !fileExists(certCrtPath)
 	if !needsRegen {
-		needsRegen = cm.isCertExpired(wildcardCrtPath)
+		needsRegen = cm.isCertExpired(certCrtPath)
 	}
 	if !needsRegen {
-		needsRegen = cm.certDomainMismatch(wildcardCrtPath, domain)
+		needsRegen = cm.certDomainsMismatch(certCrtPath, domains)
 	}
 
 	if needsRegen {
-		if err := cm.generateWildcard(domain, caKeyPath, caCrtPath, wildcardKeyPath, wildcardCrtPath); err != nil {
-			return fmt.Errorf("generating wildcard cert: %w", err)
+		if err := cm.generateSANCert(domains, caKeyPath, caCrtPath, certKeyPath, certCrtPath); err != nil {
+			return fmt.Errorf("generating SAN cert: %w", err)
 		}
 	}
 
 	// Write dynamic/tls.yml for Traefik file provider
 	tlsYml := `tls:
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /certs/wildcard.crt
+        keyFile: /certs/wildcard.key
   certificates:
     - certFile: /certs/wildcard.crt
       keyFile: /certs/wildcard.key
@@ -121,7 +130,7 @@ func (cm *CertManager) generateCA(keyPath, crtPath string) error {
 	return writeCertPEM(crtPath, certDER)
 }
 
-func (cm *CertManager) generateWildcard(domain, caKeyPath, caCrtPath, keyPath, crtPath string) error {
+func (cm *CertManager) generateSANCert(domains []string, caKeyPath, caCrtPath, keyPath, crtPath string) error {
 	caKey, err := loadECKey(caKeyPath)
 	if err != nil {
 		return fmt.Errorf("loading CA key: %w", err)
@@ -141,13 +150,22 @@ func (cm *CertManager) generateWildcard(domain, caKeyPath, caCrtPath, keyPath, c
 		return err
 	}
 
+	// Build DNS names list from all individual domains
+	dnsNames := make([]string, len(domains))
+	copy(dnsNames, domains)
+
+	cn := domains[0]
+	if len(cn) > 64 {
+		cn = cn[:64]
+	}
+
 	tmpl := &x509.Certificate{
 		SerialNumber: serial,
 		Subject: pkix.Name{
-			CommonName:   "*." + domain,
+			CommonName:   cn,
 			Organization: []string{"homelabctl"},
 		},
-		DNSNames:  []string{domain, "*." + domain},
+		DNSNames:  dnsNames,
 		NotBefore: time.Now(),
 		NotAfter:  time.Now().Add(365 * 24 * time.Hour), // 1 year
 		KeyUsage:  x509.KeyUsageDigitalSignature,
@@ -167,17 +185,21 @@ func (cm *CertManager) generateWildcard(domain, caKeyPath, caCrtPath, keyPath, c
 	return writeCertPEM(crtPath, certDER)
 }
 
-func (cm *CertManager) certDomainMismatch(certPath, domain string) bool {
+func (cm *CertManager) certDomainsMismatch(certPath string, domains []string) bool {
 	cert, err := loadCert(certPath)
 	if err != nil {
 		return true
 	}
+	certDNS := make(map[string]bool, len(cert.DNSNames))
 	for _, dns := range cert.DNSNames {
-		if dns == "*."+domain {
-			return false
+		certDNS[dns] = true
+	}
+	for _, d := range domains {
+		if !certDNS[d] {
+			return true
 		}
 	}
-	return true
+	return false
 }
 
 func (cm *CertManager) isCertExpired(certPath string) bool {

@@ -17,19 +17,21 @@ type BasePage struct {
 
 // Handler holds shared dependencies for all route handlers.
 type Handler struct {
-	cfg     *config.Config
-	manager *app.Manager
-	runner  *exec.Runner
-	compose *app.Compose
+	cfg         *config.Config
+	manager     *app.Manager
+	runner      *exec.Runner
+	compose     *app.Compose
+	healthCache *app.HealthCache
 }
 
 // New creates a new Handler with all dependencies.
-func New(cfg *config.Config, manager *app.Manager, runner *exec.Runner) *Handler {
+func New(cfg *config.Config, manager *app.Manager, runner *exec.Runner, healthCache *app.HealthCache) *Handler {
 	return &Handler{
-		cfg:     cfg,
-		manager: manager,
-		runner:  runner,
-		compose: app.NewCompose(runner, cfg.Docker.ComposeCommand),
+		cfg:         cfg,
+		manager:     manager,
+		runner:      runner,
+		compose:     app.NewCompose(runner, cfg.Docker.ComposeCommand),
+		healthCache: healthCache,
 	}
 }
 
@@ -79,10 +81,17 @@ func (h *Handler) Register(e *echo.Echo) {
 	// Settings
 	e.GET("/settings", h.HandleSettingsPage)
 
+	// CA Certificate
+	e.GET("/ca", h.HandleCAPage)
+	e.GET("/ca/cert", h.HandleCACert)
+	e.GET("/ca/install.sh", h.HandleCAInstallScript)
+	e.GET("/ca/qr.png", h.HandleCAQRCode)
+
 	// API
 	e.GET("/api/health", h.APIHealth)
 	e.GET("/api/stats", h.APIStats)
 	e.GET("/api/apps", h.APIApps)
+	e.GET("/api/apps/health", h.APIAppsHealth)
 	e.GET("/api/routing/status", h.APIRoutingStatus)
 
 }

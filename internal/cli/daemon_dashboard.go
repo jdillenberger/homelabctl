@@ -61,7 +61,7 @@ var daemonDashboardCmd = &cobra.Command{
 		fmt.Println("\nShutting down dashboard...")
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		return srv.Echo.Shutdown(shutdownCtx)
+		return srv.Shutdown(shutdownCtx)
 	},
 }
 

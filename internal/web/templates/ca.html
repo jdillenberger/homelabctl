@@ -1,0 +1,84 @@
+{{template "base.html" .}}
+
+{{define "title"}}CA Certificate - homelabctl{{end}}
+
+{{define "content"}}
+<h2>Trust CA Certificate</h2>
+
+{{if not .Available}}
+<article>
+    <div class="empty-state">
+        <strong>CA certificate not available</strong>
+        <p>Deploy traefik with HTTPS enabled to generate a local CA certificate.</p>
+        <code>homelabctl apps deploy traefik</code>
+    </div>
+</article>
+{{else}}
+
+<article>
+    <header><strong>Certificate Info</strong></header>
+    <table>
+        <tr><td><strong>Subject</strong></td><td>{{.Subject}}</td></tr>
+        <tr><td><strong>Organization</strong></td><td>{{.Organization}}</td></tr>
+        <tr><td><strong>Valid from</strong></td><td>{{.ValidFrom}}</td></tr>
+        <tr><td><strong>Valid until</strong></td><td>{{.ValidUntil}}</td></tr>
+        <tr><td><strong>Fingerprint (SHA-256)</strong></td><td style="font-family: monospace; font-size: 0.8em; word-break: break-all;">{{.Fingerprint}}</td></tr>
+    </table>
+    <div class="quick-actions">
+        <a href="/ca/cert" role="button">Download CA Certificate</a>
+    </div>
+</article>
+
+<article>
+    <header><strong>Scan with Mobile Device</strong></header>
+    <p>Scan this QR code to open this page on your phone or tablet, then download and install the certificate.</p>
+    <div style="text-align: center; padding: 1rem 0;">
+        <img src="/ca/qr.png" alt="QR Code" width="256" height="256" style="image-rendering: pixelated;">
+    </div>
+</article>
+
+<article>
+    <header><strong>Install Instructions</strong></header>
+
+    <details open>
+        <summary><strong>Linux</strong></summary>
+        <p>Run this command on the target machine:</p>
+        <pre><code>curl -sSL {{.InstallURL}}/ca/install.sh | sudo bash</code></pre>
+    </details>
+
+    <details>
+        <summary><strong>macOS</strong></summary>
+        <p>Run this command in Terminal:</p>
+        <pre><code>curl -sSL {{.InstallURL}}/ca/install.sh | sudo bash</code></pre>
+    </details>
+
+    <details>
+        <summary><strong>Windows</strong></summary>
+        <p>Run this command in PowerShell as Administrator:</p>
+        <pre><code>Invoke-WebRequest -Uri "{{.InstallURL}}/ca/cert" -OutFile "$env:TEMP\homelabctl-ca.crt"; Import-Certificate -FilePath "$env:TEMP\homelabctl-ca.crt" -CertStoreLocation Cert:\LocalMachine\Root</code></pre>
+    </details>
+
+    <details>
+        <summary><strong>iOS</strong></summary>
+        <ol>
+            <li>Scan the QR code above or tap <a href="/ca/cert">Download Certificate</a></li>
+            <li>Open <strong>Settings</strong> &rarr; <strong>General</strong> &rarr; <strong>VPN &amp; Device Management</strong></li>
+            <li>Tap the downloaded profile and install it</li>
+            <li>Go to <strong>Settings</strong> &rarr; <strong>General</strong> &rarr; <strong>About</strong> &rarr; <strong>Certificate Trust Settings</strong></li>
+            <li>Enable full trust for <strong>homelabctl Local CA</strong></li>
+        </ol>
+    </details>
+
+    <details>
+        <summary><strong>Android</strong></summary>
+        <ol>
+            <li>Scan the QR code above or tap <a href="/ca/cert">Download Certificate</a></li>
+            <li>Open <strong>Settings</strong> &rarr; <strong>Security</strong> &rarr; <strong>Encryption &amp; credentials</strong></li>
+            <li>Tap <strong>Install a certificate</strong> &rarr; <strong>CA certificate</strong></li>
+            <li>Select the downloaded file</li>
+        </ol>
+    </details>
+</article>
+
+{{end}}
+{{end}}

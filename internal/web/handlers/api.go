@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+
+	"github.com/jdillenberger/homelabctl/internal/app"
 )
 
 // APIHealth returns a JSON health check response.
@@ -19,6 +21,25 @@ func (h *Handler) APIHealth(c echo.Context) error {
 // APIStats returns JSON system stats.
 func (h *Handler) APIStats(c echo.Context) error {
 	return c.JSON(http.StatusOK, statsJSON())
+}
+
+// APIAppsHealth returns cached health status for all deployed apps as JSON.
+func (h *Handler) APIAppsHealth(c echo.Context) error {
+	all := h.healthCache.All()
+	// Filter out apps without a healthcheck.
+	var results []app.CachedHealthResult
+	for _, r := range all {
+		if r.Status != app.HealthStatusNone {
+			results = append(results, r)
+		}
+	}
+	if results == nil {
+		results = []app.CachedHealthResult{}
+	}
+	return c.JSON(http.StatusOK, map[string]any{
+		"results": results,
+		"count":   len(results),
+	})
 }
 
 // APIApps returns a JSON list of deployed apps.

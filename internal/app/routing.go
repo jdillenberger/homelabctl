@@ -222,7 +222,8 @@ func getLabelsMap(svc map[string]interface{}) map[string]string {
 }
 
 // computeRouting builds a DeployedRouting from config and app metadata.
-func computeRouting(cfg *config.Config, appName string, meta *AppMeta) *DeployedRouting {
+// mergedValues is checked for a user-supplied "routing_hostname" override.
+func computeRouting(cfg *config.Config, appName string, meta *AppMeta, mergedValues map[string]string) *DeployedRouting {
 	r := &DeployedRouting{
 		Enabled:   true,
 		KeepPorts: true,
@@ -239,7 +240,23 @@ func computeRouting(cfg *config.Config, appName string, meta *AppMeta) *Deployed
 	if meta.Routing != nil && meta.Routing.Subdomain != "" {
 		subdomain = meta.Routing.Subdomain
 	}
-	r.Domains = []string{subdomain + "." + cfg.RoutingDomain()}
+
+	// Determine domain with priority:
+	// 1. User override via --set routing_hostname=X → X.network_domain
+	// 2. App meta routing.hostname → hostname.network_domain
+	// 3. Explicit routing.domain in config → subdomain.routing_domain (hierarchical)
+	// 4. Default → subdomain-hostname.network_domain (flat)
+	if userHostname := mergedValues["routing_hostname"]; userHostname != "" {
+		r.Domains = []string{userHostname + "." + cfg.Network.Domain}
+	} else if meta.Routing != nil && meta.Routing.Hostname != "" {
+		r.Domains = []string{meta.Routing.Hostname + "." + cfg.Network.Domain}
+	} else if cfg.Routing.Domain != "" {
+		// User has explicit routing.domain set — they have DNS, use hierarchical naming
+		r.Domains = []string{subdomain + "." + cfg.Routing.Domain}
+	} else {
+		// Default: flat naming for mDNS compatibility
+		r.Domains = []string{subdomain + "-" + cfg.Hostname + "." + cfg.Network.Domain}
+	}
 
 	// Determine container port
 	if meta.Routing != nil && meta.Routing.ContainerPort > 0 {
@@ -289,7 +306,7 @@ func (m *Manager) RegenerateCompose(appName string) error {
 		info.Values["routing_url"] = fmt.Sprintf("%s://%s", scheme, info.Routing.Domains[0])
 	}
 	if info.Values["routing_domain"] == "" {
-		info.Values["routing_domain"] = m.cfg.Hostname + "." + m.cfg.Network.Domain
+		info.Values["routing_domain"] = appName + "-" + m.cfg.Hostname + "." + m.cfg.Network.Domain
 	}
 	if info.Values["routing_url"] == "" {
 		scheme := "http"

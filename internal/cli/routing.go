@@ -279,9 +279,25 @@ func modifyRouting(appName string, modFn func(*app.DeployedApp) error) error {
 
 // computeDefaultRouting builds a DeployedRouting using config defaults.
 func computeDefaultRouting(cfg *config.Config, appName string, meta *app.AppMeta) *app.DeployedRouting {
+	// Determine subdomain
+	subdomain := appName
+	if meta.Routing != nil && meta.Routing.Subdomain != "" {
+		subdomain = meta.Routing.Subdomain
+	}
+
+	// Determine domain: flat naming for mDNS, hierarchical if routing.domain is set
+	var domain string
+	if meta.Routing != nil && meta.Routing.Hostname != "" {
+		domain = meta.Routing.Hostname + "." + cfg.Network.Domain
+	} else if cfg.Routing.Domain != "" {
+		domain = subdomain + "." + cfg.Routing.Domain
+	} else {
+		domain = subdomain + "-" + cfg.Hostname + "." + cfg.Network.Domain
+	}
+
 	routing := &app.DeployedRouting{
 		Enabled:   true,
-		Domains:   []string{appName + "." + cfg.RoutingDomain()},
+		Domains:   []string{domain},
 		KeepPorts: true,
 	}
 

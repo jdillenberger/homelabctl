@@ -115,6 +115,8 @@ func CheckAll() []CheckResult {
 	results = append(results, CheckNSSwitchMDNS())
 	results = append(results, CheckAvahiRunning())
 	results = append(results, CheckAvahiInterfaces())
+	results = append(results, CheckResolvedMDNS())
+	results = append(results, CheckAvahiHostnameConflict())
 	return results
 }
 
@@ -240,6 +242,11 @@ func Fix(result CheckResult) error {
 		return fixAvahiInterfaces()
 	}
 
+	// Special handler for resolved-mdns
+	if result.Name == "resolved-mdns" {
+		return fixResolvedMDNS()
+	}
+
 	if result.InstallCommand == "" {
 		return fmt.Errorf("no install command for %s", result.Name)
 	}
@@ -316,6 +323,48 @@ func fixNSSwitchMDNS() error {
 	return nil
 }
 
+// CheckResolvedMDNS checks if systemd-resolved has mDNS enabled globally.
+// Without this, .local name resolution fails even when avahi-daemon is running.
+func CheckResolvedMDNS() CheckResult {
+	result := CheckResult{
+		Name: "resolved-mdns",
+	}
+
+	// Check if systemd-resolved is active
+	cmd := exec.Command("systemctl", "is-active", "systemd-resolved")
+	out, _ := cmd.CombinedOutput()
+	if strings.TrimSpace(string(out)) != "active" {
+		result.Installed = true
+		result.Version = "systemd-resolved not active, skipped"
+		return result
+	}
+
+	// Check global mDNS setting via resolvectl
+	cmd = exec.Command("resolvectl", "status")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		result.Version = "cannot query resolvectl status"
+		return result
+	}
+
+	// Look for the global Protocols line: "+mDNS" means enabled, "-mDNS" means disabled
+	for _, line := range strings.Split(string(out), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "Protocols:") {
+			if strings.Contains(trimmed, "+mDNS") {
+				result.Installed = true
+				result.Version = "mDNS enabled globally"
+			} else if strings.Contains(trimmed, "-mDNS") {
+				result.Version = "mDNS disabled globally in systemd-resolved (run doctor --fix)"
+			}
+			return result
+		}
+	}
+
+	result.Version = "could not determine mDNS status"
+	return result
+}
+
 // fixAvahiInterfaces sets allow-interfaces in avahi-daemon.conf to physical
 // interfaces only, preventing Docker bridges from hijacking .local resolution.
 func fixAvahiInterfaces() error {
@@ -359,5 +408,76 @@ func fixAvahiInterfaces() error {
 	}
 
 	fmt.Println("    Restarted avahi-daemon")
+	return nil
+}
+
+// CheckAvahiHostnameConflict detects if avahi-daemon has renamed the hostname
+// due to mDNS conflicts (e.g. x1.local -> x1-2.local), typically caused by
+// orphaned avahi-publish processes from previous daemon runs.
+func CheckAvahiHostnameConflict() CheckResult {
+	result := CheckResult{
+		Name: "avahi-hostname-conflict",
+	}
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		result.Version = "cannot determine hostname"
+		return result
+	}
+
+	// Try to resolve our hostname via avahi
+	cmd := exec.Command("avahi-resolve", "-n", hostname+".local")
+	out, err := cmd.CombinedOutput()
+	if err == nil && strings.TrimSpace(string(out)) != "" {
+		result.Installed = true
+		result.Version = hostname + ".local resolves OK"
+		return result
+	}
+
+	// Resolution failed — check journal for conflict messages
+	cmd = exec.Command("journalctl", "-u", "avahi-daemon", "--since", "1 hour ago", "--no-pager", "-q")
+	out, _ = cmd.CombinedOutput()
+	if strings.Contains(string(out), "Host name conflict") {
+		result.Version = hostname + ".local has hostname conflict — kill orphaned avahi-publish processes and restart avahi-daemon"
+		return result
+	}
+
+	result.Version = hostname + ".local not resolvable via mDNS"
+	return result
+}
+
+// fixResolvedMDNS enables mDNS globally in systemd-resolved via a drop-in config.
+func fixResolvedMDNS() error {
+	dropInDir := "/etc/systemd/resolved.conf.d"
+	dropInFile := dropInDir + "/homelabctl-mdns.conf"
+	content := "[Resolve]\nMulticastDNS=yes\n"
+
+	// Create drop-in directory
+	cmd := exec.Command("sudo", "mkdir", "-p", dropInDir)
+	cmd.Stdin = os.Stdin
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("creating %s: %w", dropInDir, err)
+	}
+
+	// Write drop-in config via sudo tee
+	cmd = exec.Command("sudo", "tee", dropInFile)
+	cmd.Stdin = strings.NewReader(content)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = nil
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("writing %s: %w", dropInFile, err)
+	}
+	fmt.Printf("    Created %s\n", dropInFile)
+
+	// Restart systemd-resolved to apply
+	cmd = exec.Command("sudo", "systemctl", "restart", "systemd-resolved")
+	cmd.Stdin = os.Stdin
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("restarting systemd-resolved: %w", err)
+	}
+	fmt.Println("    Restarted systemd-resolved")
+
 	return nil
 }

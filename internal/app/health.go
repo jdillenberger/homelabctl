@@ -24,6 +24,7 @@ const (
 	HealthStatusUnhealthy HealthStatus = "unhealthy"
 	HealthStatusStarting  HealthStatus = "starting"
 	HealthStatusUnknown   HealthStatus = "unknown"
+	HealthStatusNone      HealthStatus = "none" // no Docker healthcheck defined
 )
 
 // HealthResult holds the outcome of a health check.

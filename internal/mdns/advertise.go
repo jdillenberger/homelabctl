@@ -3,6 +3,7 @@ package mdns
 import (
 	"fmt"
 	"log/slog"
+	"net"
 	"strings"
 
 	"github.com/grandcat/zeroconf"
@@ -26,13 +27,18 @@ func Advertise(cfg *config.Config, version string, apps []string) (shutdown func
 		"role=primary",
 	}
 
+	ifaces, err := physicalInterfaces()
+	if err != nil {
+		return nil, fmt.Errorf("detecting network interfaces: %w", err)
+	}
+
 	server, err := zeroconf.Register(
 		hostname,    // instance name
 		serviceType, // service type
 		"local.",    // domain
 		port,        // port
 		txt,         // TXT records
-		nil,         // interfaces (nil = all)
+		ifaces,      // interfaces (physical only)
 	)
 	if err != nil {
 		return nil, fmt.Errorf("registering mDNS service: %w", err)
@@ -44,4 +50,28 @@ func Advertise(cfg *config.Config, version string, apps []string) (shutdown func
 		server.Shutdown()
 		slog.Debug("mDNS advertising stopped")
 	}, nil
+}
+
+// physicalInterfaces returns non-virtual network interfaces, excluding
+// Docker bridges, veth pairs, and loopback.
+func physicalInterfaces() ([]net.Interface, error) {
+	all, err := net.Interfaces()
+	if err != nil {
+		return nil, err
+	}
+
+	var result []net.Interface
+	for _, iface := range all {
+		name := iface.Name
+		if iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		if strings.HasPrefix(name, "docker") ||
+			strings.HasPrefix(name, "br-") ||
+			strings.HasPrefix(name, "veth") {
+			continue
+		}
+		result = append(result, iface)
+	}
+	return result, nil
 }

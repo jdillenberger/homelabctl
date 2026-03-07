@@ -1,8 +1,10 @@
 package web
 
 import (
+	"context"
 	"io/fs"
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -17,9 +19,10 @@ import (
 
 // Server holds the Echo instance and dependencies.
 type Server struct {
-	Echo    *echo.Echo
-	cfg     *config.Config
-	manager *app.Manager
+	Echo        *echo.Echo
+	cfg         *config.Config
+	manager     *app.Manager
+	healthCache *app.HealthCache
 }
 
 // NewServer creates and configures a new web server.
@@ -59,14 +62,26 @@ func NewServer(cfg *config.Config, manager *app.Manager, runner *exec.Runner, de
 	}
 	e.GET("/static/*", echo.WrapHandler(http.StripPrefix("/static/", http.FileServer(http.FS(staticFS)))))
 
+	// Create and start health cache (polls docker healthcheck status in background)
+	compose := app.NewCompose(runner, cfg.Docker.ComposeCommand)
+	healthCache := app.NewHealthCache(
+		compose,
+		cfg.AppsDir,
+		manager.ListDeployed,
+		30*time.Second,
+		2*time.Minute,
+	)
+	healthCache.Start()
+
 	s := &Server{
-		Echo:    e,
-		cfg:     cfg,
-		manager: manager,
+		Echo:        e,
+		cfg:         cfg,
+		manager:     manager,
+		healthCache: healthCache,
 	}
 
 	// Register handlers
-	h := handlers.New(cfg, manager, runner)
+	h := handlers.New(cfg, manager, runner, healthCache)
 	h.Register(e)
 
 	return s, nil
@@ -75,4 +90,10 @@ func NewServer(cfg *config.Config, manager *app.Manager, runner *exec.Runner, de
 // Start starts the HTTP server on the given address.
 func (s *Server) Start(addr string) error {
 	return s.Echo.Start(addr)
+}
+
+// Shutdown gracefully stops background tasks and the HTTP server.
+func (s *Server) Shutdown(ctx context.Context) error {
+	s.healthCache.Stop()
+	return s.Echo.Shutdown(ctx)
 }

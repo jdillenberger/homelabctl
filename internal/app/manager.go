@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -215,7 +216,8 @@ func (m *Manager) Deploy(appName string, opts DeployOptions) error {
 	// Generate local certificates for traefik
 	if appName == "traefik" && m.cfg.Routing.HTTPS.Enabled {
 		cm := NewCertManager(m.cfg.DataPath("traefik"))
-		if err := cm.EnsureCerts(m.cfg.RoutingDomain()); err != nil {
+		certDomains := m.collectAllRoutingDomains(appName, mergedValues)
+		if err := cm.EnsureCerts(certDomains); err != nil {
 			return fmt.Errorf("generating local certificates: %w", err)
 		}
 		slog.Info("Local certificates generated", "ca_cert", cm.CACertPath())
@@ -231,7 +233,7 @@ func (m *Manager) Deploy(appName string, opts DeployOptions) error {
 	// Compute routing BEFORE rendering so templates can use routing_domain/routing_url
 	var deployedRouting *DeployedRouting
 	if m.cfg.Routing.Enabled && m.cfg.Routing.Provider == "traefik" {
-		deployedRouting = computeRouting(m.cfg, appName, meta)
+		deployedRouting = computeRouting(m.cfg, appName, meta, mergedValues)
 		if deployedRouting.Enabled && len(deployedRouting.Domains) > 0 {
 			scheme := "http"
 			if m.cfg.Routing.HTTPS.Enabled {
@@ -244,7 +246,7 @@ func (m *Manager) Deploy(appName string, opts DeployOptions) error {
 
 	// Fallback routing values when routing is disabled (templates use missingkey=error)
 	if mergedValues["routing_domain"] == "" {
-		mergedValues["routing_domain"] = m.cfg.Hostname + "." + m.cfg.Network.Domain
+		mergedValues["routing_domain"] = appName + "-" + m.cfg.Hostname + "." + m.cfg.Network.Domain
 	}
 	if mergedValues["routing_url"] == "" {
 		scheme := "http"
@@ -252,6 +254,15 @@ func (m *Manager) Deploy(appName string, opts DeployOptions) error {
 			scheme = "https"
 		}
 		mergedValues["routing_url"] = fmt.Sprintf("%s://%s", scheme, mergedValues["routing_domain"])
+	}
+
+	// Regenerate SAN cert to include this app's domain (non-traefik deploys)
+	if appName != "traefik" && m.cfg.Routing.HTTPS.Enabled && m.isTraefikDeployed() {
+		cm := NewCertManager(m.cfg.DataPath("traefik"))
+		certDomains := m.collectAllRoutingDomains(appName, mergedValues)
+		if err := cm.EnsureCerts(certDomains); err != nil {
+			slog.Warn("Failed to regenerate SAN cert", "error", err)
+		}
 	}
 
 	// Render templates
@@ -783,6 +794,67 @@ func executeHooks(hooks []Hook, values map[string]string, runner *exec.Runner) {
 			}
 		}
 	}
+}
+
+// isTraefikDeployed checks if traefik is currently deployed.
+func (m *Manager) isTraefikDeployed() bool {
+	deployed, err := m.ListDeployed()
+	if err != nil {
+		return false
+	}
+	for _, d := range deployed {
+		if d == "traefik" {
+			return true
+		}
+	}
+	return false
+}
+
+// collectAllRoutingDomains gathers all local routing domains from deployed apps,
+// the current app being deployed (via mergedValues), and the dashboard domain.
+// Each domain is listed individually in the SAN cert since wildcard certs for
+// pseudo-TLDs like *.local are rejected by TLS implementations.
+func (m *Manager) collectAllRoutingDomains(currentApp string, mergedValues map[string]string) []string {
+	domainSet := make(map[string]bool)
+
+	// Always include the dashboard domain (hostname.domain)
+	dashboardDomain := m.cfg.RoutingDomain()
+	if isLocalDomain(dashboardDomain) {
+		domainSet[dashboardDomain] = true
+	}
+
+	// Include domain from the current deploy
+	if rd, ok := mergedValues["routing_domain"]; ok && rd != "" && isLocalDomain(rd) {
+		domainSet[rd] = true
+	}
+
+	// Collect domains from all already-deployed apps
+	deployed, err := m.ListDeployed()
+	if err == nil {
+		for _, appName := range deployed {
+			if appName == currentApp {
+				continue // already included from mergedValues
+			}
+			info, err := m.GetDeployedInfo(appName)
+			if err != nil {
+				continue
+			}
+			if info.Routing != nil && info.Routing.Enabled {
+				for _, d := range info.Routing.Domains {
+					if isLocalDomain(d) {
+						domainSet[d] = true
+					}
+				}
+			}
+		}
+	}
+
+	domains := make([]string, 0, len(domainSet))
+	for d := range domainSet {
+		domains = append(domains, d)
+	}
+	sort.Strings(domains)
+	return domains
 }
 
 // generateCABundle creates a CA certificate bundle that includes the system CAs

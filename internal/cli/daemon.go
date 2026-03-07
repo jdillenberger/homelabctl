@@ -104,6 +104,6 @@ var daemonCmd = &cobra.Command{
 		fmt.Println("\nShutting down...")
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		return srv.Echo.Shutdown(shutdownCtx)
+		return srv.Shutdown(shutdownCtx)
 	},
 }

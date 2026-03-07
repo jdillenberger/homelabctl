@@ -5,7 +5,6 @@ import (
 	"html"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -130,52 +129,38 @@ func (h *Handler) Dashboard(c echo.Context) error {
 }
 
 // DashboardHealth returns out-of-band health badge updates for all deployed apps.
-// Health checks run in parallel to minimize total wait time.
+// Reads from the in-memory health cache (populated by background polling).
 func (h *Handler) DashboardHealth(c echo.Context) error {
 	deployed, _ := h.manager.ListDeployed()
-	registry := h.manager.Registry()
-	checker := app.NewHealthChecker()
-	compose := app.NewCompose(h.runner, h.cfg.Docker.ComposeCommand)
-
-	type healthResult struct {
-		name   string
-		health string
-	}
-
-	results := make([]healthResult, len(deployed))
-	var wg sync.WaitGroup
-
-	for i, name := range deployed {
-		wg.Add(1)
-		go func(i int, name string) {
-			defer wg.Done()
-			health := "unknown"
-			if meta, ok := registry.Get(name); ok {
-				r := checker.CheckApp(meta, compose, h.cfg.AppDir(name))
-				health = string(r.Status)
-			}
-			results[i] = healthResult{name: name, health: health}
-		}(i, name)
-	}
-	wg.Wait()
 
 	var buf strings.Builder
-	// Empty primary swap target content
 	buf.WriteString("<span></span>")
-	// OOB swaps for each health badge
-	for _, r := range results {
+
+	for _, name := range deployed {
+		r := h.healthCache.Get(name)
+
+		// No badge for apps without a Docker healthcheck.
+		if r.Status == app.HealthStatusNone {
+			fmt.Fprintf(&buf, `<span id="health-%s" hx-swap-oob="true"></span>`,
+				html.EscapeString(name))
+			continue
+		}
+
 		badgeClass := "badge-available"
 		label := "unknown"
-		switch r.health {
-		case "healthy":
+		switch r.Status {
+		case app.HealthStatusHealthy:
 			badgeClass = "badge-running"
 			label = "healthy"
-		case "unhealthy":
+		case app.HealthStatusUnhealthy:
 			badgeClass = "badge-stopped"
 			label = "down"
+		case app.HealthStatusStarting:
+			badgeClass = "badge-available"
+			label = "starting"
 		}
 		fmt.Fprintf(&buf, `<span id="health-%s" hx-swap-oob="true" class="badge %s">%s</span>`,
-			html.EscapeString(r.name), badgeClass, label)
+			html.EscapeString(name), badgeClass, label)
 	}
 
 	return c.HTML(http.StatusOK, buf.String())

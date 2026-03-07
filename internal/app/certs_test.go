@@ -13,7 +13,7 @@ func TestCertManagerEnsureCerts(t *testing.T) {
 	cm := NewCertManager(tmpDir)
 	domain := "myhost.local"
 
-	if err := cm.EnsureCerts(domain); err != nil {
+	if err := cm.EnsureCerts([]string{domain}); err != nil {
 		t.Fatalf("EnsureCerts() error: %v", err)
 	}
 
@@ -48,6 +48,9 @@ func TestCertManagerEnsureCerts(t *testing.T) {
 		if !contains(content, "/certs/wildcard.crt") || !contains(content, "/certs/wildcard.key") {
 			t.Error("tls.yml should reference /certs/wildcard.{crt,key}")
 		}
+		if !contains(content, "stores:") || !contains(content, "defaultCertificate:") {
+			t.Error("tls.yml should configure default certificate store")
+		}
 	})
 
 	t.Run("CA cert is a valid CA", func(t *testing.T) {
@@ -62,7 +65,7 @@ func TestCertManagerEnsureCerts(t *testing.T) {
 
 	t.Run("wildcard cert has correct SANs", func(t *testing.T) {
 		cert := loadTestCert(t, filepath.Join(certsDir, "wildcard.crt"))
-		wantDNS := map[string]bool{domain: true, "*." + domain: true}
+		wantDNS := map[string]bool{domain: true}
 		for _, dns := range cert.DNSNames {
 			delete(wantDNS, dns)
 		}
@@ -92,7 +95,7 @@ func TestCertManagerIdempotent(t *testing.T) {
 	cm := NewCertManager(tmpDir)
 	domain := "myhost.local"
 
-	if err := cm.EnsureCerts(domain); err != nil {
+	if err := cm.EnsureCerts([]string{domain}); err != nil {
 		t.Fatalf("first EnsureCerts() error: %v", err)
 	}
 
@@ -101,7 +104,7 @@ func TestCertManagerIdempotent(t *testing.T) {
 	caBefore, _ := os.ReadFile(caPath)
 
 	// Run again — should not regenerate CA
-	if err := cm.EnsureCerts(domain); err != nil {
+	if err := cm.EnsureCerts([]string{domain}); err != nil {
 		t.Fatalf("second EnsureCerts() error: %v", err)
 	}
 

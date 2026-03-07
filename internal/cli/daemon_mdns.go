@@ -93,6 +93,7 @@ func startMDNS(cfg *config.Config, mgr *app.Manager, runner *exec.Runner, sched 
 	// Advertise app routing domains via Avahi CNAME
 	if cfg.MDNS.AdvertiseApps {
 		avahiMgr := mdns.NewAvahiCNAME(runner)
+		avahiMgr.CleanStaleProcesses()
 		cleanup.add(avahiMgr.Shutdown)
 
 		var reconcileMu sync.Mutex

@@ -23,7 +23,7 @@ func NewAvahiCNAME(runner *homelabExec.Runner) *AvahiCNAME {
 	return &AvahiCNAME{
 		runner:    runner,
 		processes: make(map[string]*os.Process),
-		localIP:   detectLocalIP(),
+		localIP:   DetectLocalIP(),
 	}
 }
 
@@ -103,6 +103,18 @@ func (a *AvahiCNAME) ListPublished() map[string]bool {
 	return result
 }
 
+// CleanStaleProcesses kills any orphaned avahi-publish address processes
+// left over from a previous daemon run. This prevents duplicate mDNS records
+// that cause avahi-daemon hostname conflicts.
+func (a *AvahiCNAME) CleanStaleProcesses() {
+	cmd := exec.Command("pkill", "-f", "avahi-publish -a -R")
+	_ = cmd.Run() // ignore error: exit 1 means no matching processes
+
+	if a.runner.Verbose {
+		fmt.Fprintln(os.Stderr, "avahi: cleaned stale avahi-publish processes")
+	}
+}
+
 // Shutdown kills all running avahi-publish processes.
 func (a *AvahiCNAME) Shutdown() {
 	a.mu.Lock()
@@ -117,8 +129,8 @@ func (a *AvahiCNAME) Shutdown() {
 	a.processes = make(map[string]*os.Process)
 }
 
-// detectLocalIP returns the primary non-loopback IPv4 address.
-func detectLocalIP() string {
+// DetectLocalIP returns the primary non-loopback IPv4 address.
+func DetectLocalIP() string {
 	conn, err := net.Dial("udp4", "8.8.8.8:53")
 	if err != nil {
 		return ""
