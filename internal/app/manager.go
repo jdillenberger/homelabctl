@@ -18,6 +18,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jdillenberger/homelabctl/internal/config"
 	"github.com/jdillenberger/homelabctl/internal/exec"
+	"github.com/jdillenberger/homelabctl/internal/mdns"
 	"gopkg.in/yaml.v3"
 )
 
@@ -89,6 +90,12 @@ func (m *Manager) ensureNetwork() error {
 			return fmt.Errorf("ensuring docker network %s: %w", network, err)
 		}
 	}
+
+	// Prevent Avahi from advertising on Docker bridge interfaces.
+	if m.cfg.MDNS.Enabled {
+		mdns.EnsureAvahiConfig()
+	}
+
 	return nil
 }
 

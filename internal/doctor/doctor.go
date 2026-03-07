@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/jdillenberger/homelabctl/internal/mdns"
 )
 
 // CheckResult holds the result of a single dependency check.
@@ -112,6 +114,7 @@ func CheckAll() []CheckResult {
 	}
 	results = append(results, CheckNSSwitchMDNS())
 	results = append(results, CheckAvahiRunning())
+	results = append(results, CheckAvahiInterfaces())
 	return results
 }
 
@@ -189,6 +192,38 @@ func CheckAvahiRunning() CheckResult {
 	return result
 }
 
+// CheckAvahiInterfaces verifies that avahi-daemon.conf restricts mDNS to
+// physical interfaces so Docker bridge interfaces don't hijack .local resolution.
+func CheckAvahiInterfaces() CheckResult {
+	result := CheckResult{
+		Name: "avahi-interfaces",
+	}
+
+	if _, err := exec.LookPath("avahi-daemon"); err != nil {
+		result.Version = "avahi-daemon not installed, skipped"
+		result.Installed = true
+		return result
+	}
+
+	data, err := os.ReadFile("/etc/avahi/avahi-daemon.conf")
+	if err != nil {
+		result.Version = "cannot read /etc/avahi/avahi-daemon.conf"
+		return result
+	}
+
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "allow-interfaces=") {
+			result.Installed = true
+			result.Version = strings.TrimSpace(line)
+			return result
+		}
+	}
+
+	ifaces, _ := mdns.PhysicalInterfaces()
+	result.Version = fmt.Sprintf("allow-interfaces not set — Docker interfaces may hijack .local resolution (run doctor --fix to set allow-interfaces=%s)", strings.Join(ifaces, ","))
+	return result
+}
+
 // Fix attempts to install a missing dependency using apt or fix system config.
 func Fix(result CheckResult) error {
 	if result.Installed {
@@ -198,6 +233,11 @@ func Fix(result CheckResult) error {
 	// Special handler for nsswitch-mdns
 	if result.Name == "nsswitch-mdns" {
 		return fixNSSwitchMDNS()
+	}
+
+	// Special handler for avahi-interfaces
+	if result.Name == "avahi-interfaces" {
+		return fixAvahiInterfaces()
 	}
 
 	if result.InstallCommand == "" {
@@ -273,5 +313,51 @@ func fixNSSwitchMDNS() error {
 		fmt.Println("    Created /etc/mdns.allow with .local domain")
 	}
 
+	return nil
+}
+
+// fixAvahiInterfaces sets allow-interfaces in avahi-daemon.conf to physical
+// interfaces only, preventing Docker bridges from hijacking .local resolution.
+func fixAvahiInterfaces() error {
+	ifaces, err := mdns.PhysicalInterfaces()
+	if err != nil || len(ifaces) == 0 {
+		return fmt.Errorf("detecting physical interfaces: %w", err)
+	}
+
+	data, err := os.ReadFile("/etc/avahi/avahi-daemon.conf")
+	if err != nil {
+		return fmt.Errorf("reading /etc/avahi/avahi-daemon.conf: %w", err)
+	}
+
+	content := string(data)
+	ifaceList := strings.Join(ifaces, ",")
+	directive := "allow-interfaces=" + ifaceList
+
+	if strings.Contains(content, "#allow-interfaces=") {
+		content = strings.Replace(content, "#allow-interfaces=eth0", directive, 1)
+	} else {
+		content = strings.Replace(content, "[server]\n", "[server]\n"+directive+"\n", 1)
+	}
+
+	tmpFile := "/tmp/avahi-daemon.conf.homelabctl"
+	if err := os.WriteFile(tmpFile, []byte(content), 0o644); err != nil {
+		return fmt.Errorf("writing temp file: %w", err)
+	}
+	cmd := exec.Command("sudo", "cp", tmpFile, "/etc/avahi/avahi-daemon.conf")
+	out, err := cmd.CombinedOutput()
+	os.Remove(tmpFile)
+	if err != nil {
+		return fmt.Errorf("updating /etc/avahi/avahi-daemon.conf: %w\n%s", err, string(out))
+	}
+
+	fmt.Printf("    Set %s in /etc/avahi/avahi-daemon.conf\n", directive)
+
+	// Restart avahi-daemon to apply.
+	cmd = exec.Command("sudo", "systemctl", "restart", "avahi-daemon")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("restarting avahi-daemon: %w\n%s", err, string(out))
+	}
+
+	fmt.Println("    Restarted avahi-daemon")
 	return nil
 }
