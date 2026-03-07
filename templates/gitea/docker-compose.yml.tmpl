@@ -12,6 +12,10 @@ services:
       - GITEA__database__NAME=gitea
       - GITEA__database__USER=gitea
       - GITEA__database__PASSWD={{index . "db_password"}}
+      - GITEA__server__ROOT_URL={{index . "routing_url"}}
+      - GITEA__server__DOMAIN={{index . "routing_domain"}}
+      - GITEA__server__SSH_PORT={{index . "ssh_port"}}
+      - GITEA__server__SSH_DOMAIN={{index . "routing_domain"}}
       - TZ={{index . "timezone"}}
     volumes:
       - {{index . "data_dir"}}/data:/data

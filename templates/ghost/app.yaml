@@ -16,9 +16,6 @@ values:
     description: MySQL password
     secret: true
     auto_gen: password
-  - name: url
-    description: Site URL
-    default: "https://ghost.example.com"
   - name: timezone
     description: Timezone
     default: "UTC"

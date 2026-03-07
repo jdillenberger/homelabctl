@@ -15,7 +15,7 @@ services:
           pids: 200
     volumes:
       - {{index . "data_dir"}}/cache:/var/cache/ntfy
-      - ./config:/etc/ntfy
+      - {{index . "data_dir"}}/config:/etc/ntfy
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:80/v1/health || exit 1"]
       interval: 30s

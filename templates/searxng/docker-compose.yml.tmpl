@@ -10,7 +10,7 @@ services:
       - SEARXNG_SECRET={{index . "secret_key"}}
       - TZ={{index . "timezone"}}
     volumes:
-      - ./config:/etc/searxng
+      - {{index . "data_dir"}}/config:/etc/searxng
       - {{index . "data_dir"}}/cache:/var/cache/searxng
     depends_on:
       searxng-valkey:
