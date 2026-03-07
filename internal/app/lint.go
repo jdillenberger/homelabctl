@@ -279,13 +279,12 @@ func (l *Linter) buildDummyValues(meta *AppMeta) map[string]string {
 
 	// Add values from app.yaml
 	for _, v := range meta.Values {
-		if v.Default != "" {
+		switch {
+		case v.Default != "":
 			values[v.Name] = v.Default
-		} else if v.Secret {
+		case v.Secret:
 			values[v.Name] = "lint-secret-placeholder"
-		} else if v.Required {
-			values[v.Name] = "lint-placeholder"
-		} else {
+		default:
 			values[v.Name] = "lint-placeholder"
 		}
 	}

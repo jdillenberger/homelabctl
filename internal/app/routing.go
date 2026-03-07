@@ -31,7 +31,7 @@ func NewRoutingLabeler(cfg *config.Config) *RoutingLabeler {
 
 // InjectLabels parses docker-compose YAML, adds Traefik labels to the primary
 // service, optionally removes host port bindings, and returns modified YAML.
-func (l *RoutingLabeler) InjectLabels(composeYAML string, appName string, routing *DeployedRouting) (string, error) {
+func (l *RoutingLabeler) InjectLabels(composeYAML, appName string, routing *DeployedRouting) (string, error) {
 	var doc map[string]interface{}
 	if err := yaml.Unmarshal([]byte(composeYAML), &doc); err != nil {
 		return "", fmt.Errorf("parsing compose YAML: %w", err)
@@ -151,13 +151,14 @@ func (l *RoutingLabeler) buildLabels(appName string, routing *DeployedRouting) m
 	}
 
 	// If all domains are the same type, use a single secure router
-	if len(externalDomains) == 0 {
+	switch {
+	case len(externalDomains) == 0:
 		// All local — use file provider cert (tls=true, no certresolver)
 		l.addSecureRouter(labels, routerName, routerName+"-secure", allRule, false)
-	} else if len(localDomains) == 0 {
+	case len(localDomains) == 0:
 		// All external
 		l.addSecureRouter(labels, routerName, routerName+"-secure", allRule, l.acmeEmail != "")
-	} else {
+	default:
 		// Mixed: separate routers for local and external domains
 		var localParts []string
 		for _, d := range localDomains {
@@ -246,24 +247,26 @@ func computeRouting(cfg *config.Config, appName string, meta *AppMeta, mergedVal
 	// 2. App meta routing.hostname → hostname.network_domain
 	// 3. Explicit routing.domain in config → subdomain.routing_domain (hierarchical)
 	// 4. Default → subdomain-hostname.network_domain (flat)
-	if userHostname := mergedValues["routing_hostname"]; userHostname != "" {
-		r.Domains = []string{userHostname + "." + cfg.Network.Domain}
-	} else if meta.Routing != nil && meta.Routing.Hostname != "" {
+	switch {
+	case mergedValues["routing_hostname"] != "":
+		r.Domains = []string{mergedValues["routing_hostname"] + "." + cfg.Network.Domain}
+	case meta.Routing != nil && meta.Routing.Hostname != "":
 		r.Domains = []string{meta.Routing.Hostname + "." + cfg.Network.Domain}
-	} else if cfg.Routing.Domain != "" {
+	case cfg.Routing.Domain != "":
 		// User has explicit routing.domain set — they have DNS, use hierarchical naming
 		r.Domains = []string{subdomain + "." + cfg.Routing.Domain}
-	} else {
+	default:
 		// Default: flat naming for mDNS compatibility
 		r.Domains = []string{subdomain + "-" + cfg.Hostname + "." + cfg.Network.Domain}
 	}
 
 	// Determine container port
-	if meta.Routing != nil && meta.Routing.ContainerPort > 0 {
+	switch {
+	case meta.Routing != nil && meta.Routing.ContainerPort > 0:
 		r.ContainerPort = meta.Routing.ContainerPort
-	} else if len(meta.Ports) > 0 {
+	case len(meta.Ports) > 0:
 		r.ContainerPort = meta.Ports[0].Container
-	} else {
+	default:
 		r.ContainerPort = 80
 	}
 

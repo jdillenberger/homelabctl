@@ -287,11 +287,12 @@ func computeDefaultRouting(cfg *config.Config, appName string, meta *app.AppMeta
 
 	// Determine domain: flat naming for mDNS, hierarchical if routing.domain is set
 	var domain string
-	if meta.Routing != nil && meta.Routing.Hostname != "" {
+	switch {
+	case meta.Routing != nil && meta.Routing.Hostname != "":
 		domain = meta.Routing.Hostname + "." + cfg.Network.Domain
-	} else if cfg.Routing.Domain != "" {
+	case cfg.Routing.Domain != "":
 		domain = subdomain + "." + cfg.Routing.Domain
-	} else {
+	default:
 		domain = subdomain + "-" + cfg.Hostname + "." + cfg.Network.Domain
 	}
 

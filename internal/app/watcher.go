@@ -191,5 +191,5 @@ func splitPath(p string) []string {
 }
 
 func isHiddenDir(name string) bool {
-	return len(name) > 0 && name[0] == '.'
+	return name != "" && name[0] == '.'
 }

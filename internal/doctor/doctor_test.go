@@ -8,8 +8,8 @@ func TestCheckAll(t *testing.T) {
 	results := CheckAll()
 	deps := DefaultDependencies()
 
-	// CheckAll returns dependency checks + system checks (nsswitch-mdns, avahi-daemon-running, avahi-interfaces)
-	expectedCount := len(deps) + 3
+	// CheckAll returns dependency checks + system checks (nsswitch-mdns, avahi-daemon-running, avahi-interfaces, resolved-mdns, avahi-hostname-conflict)
+	expectedCount := len(deps) + 5
 
 	t.Run("returns result for each check", func(t *testing.T) {
 		if len(results) != expectedCount {
