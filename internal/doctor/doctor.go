@@ -450,7 +450,7 @@ func CheckAvahiHostnameConflict() CheckResult {
 func fixResolvedMDNS() error {
 	dropInDir := "/etc/systemd/resolved.conf.d"
 	dropInFile := dropInDir + "/homelabctl-mdns.conf"
-	content := "[Resolve]\nMulticastDNS=yes\n"
+	content := "[Resolve]\nMulticastDNS=resolve\n"
 
 	// Create drop-in directory
 	cmd := exec.Command("sudo", "mkdir", "-p", dropInDir)
