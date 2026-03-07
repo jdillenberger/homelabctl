@@ -28,9 +28,6 @@ values:
   - name: ssh_port
     description: SSH port
     default: "2224"
-  - name: external_url
-    description: External URL for GitLab
-    default: "http://gitlab.local"
   - name: root_password
     description: GitLab root password
     secret: true

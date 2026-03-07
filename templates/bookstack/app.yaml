@@ -16,9 +16,6 @@ values:
     description: MariaDB password
     secret: true
     auto_gen: password
-  - name: app_url
-    description: Application URL
-    default: "https://bookstack.example.com"
   - name: timezone
     description: Timezone
     default: "UTC"

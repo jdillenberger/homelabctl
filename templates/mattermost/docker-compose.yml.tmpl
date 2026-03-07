@@ -9,7 +9,7 @@ services:
       - MM_SQLSETTINGS_DRIVERNAME=postgres
       - MM_SQLSETTINGS_DATASOURCE=postgres://mattermost:{{index . "db_password"}}@mattermost-db:5432/mattermost?sslmode=disable&connect_timeout=10
       - MM_BLEVESETTINGS_INDEXDIR=/mattermost/bleve-indexes
-      - MM_SERVICESETTINGS_SITEURL=http://{{index . "hostname"}}.{{index . "domain"}}:{{index . "web_port"}}
+      - MM_SERVICESETTINGS_SITEURL={{index . "routing_url"}}
       - TZ={{index . "timezone"}}
     volumes:
       - {{index . "data_dir"}}/config:/mattermost/config

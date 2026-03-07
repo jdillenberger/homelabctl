@@ -13,7 +13,7 @@ services:
       - MYSQL_PASSWORD={{index . "db_user_password"}}
       - NEXTCLOUD_ADMIN_USER={{index . "nextcloud_admin_user"}}
       - NEXTCLOUD_ADMIN_PASSWORD={{index . "nextcloud_admin_password"}}
-      - NEXTCLOUD_TRUSTED_DOMAINS=localhost {{index . "hostname"}}.{{index . "domain"}} {{index . "routing_domain"}}
+      - NEXTCLOUD_TRUSTED_DOMAINS=localhost {{index . "routing_domain"}}
 {{- if eq (index . "https_enabled") "true"}}
       - OVERWRITEPROTOCOL=https
 {{- end}}

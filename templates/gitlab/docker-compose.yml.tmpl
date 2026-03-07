@@ -11,7 +11,7 @@ services:
     environment:
       TZ: '{{index . "timezone"}}'
       GITLAB_OMNIBUS_CONFIG: |
-        external_url '{{index . "external_url"}}'
+        external_url '{{index . "routing_url"}}'
         gitlab_rails['initial_root_password'] = '{{index . "root_password"}}'
         nginx['listen_port'] = 80
         nginx['listen_https'] = false

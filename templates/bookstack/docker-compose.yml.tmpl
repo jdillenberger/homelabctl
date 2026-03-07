@@ -9,7 +9,7 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ={{index . "timezone"}}
-      - APP_URL={{index . "app_url"}}
+      - APP_URL={{index . "routing_url"}}
       - DB_HOST=bookstack-db
       - DB_DATABASE=bookstack
       - DB_USER=bookstack

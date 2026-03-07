@@ -8,8 +8,9 @@ services:
     environment:
       - CMD_DB_URL=postgres://hedgedoc:{{index . "db_password"}}@hedgedoc-db:5432/hedgedoc
       - CMD_SESSION_SECRET={{index . "session_secret"}}
-      - CMD_DOMAIN={{index . "hostname"}}.{{index . "domain"}}
-      - CMD_PROTOCOL_USESSL=false
+      - CMD_DOMAIN={{index . "routing_domain"}}
+      - CMD_URL_ADDPORT=false
+      - CMD_PROTOCOL_USESSL={{index . "https_enabled"}}
       - TZ={{index . "timezone"}}
     volumes:
       - {{index . "data_dir"}}/uploads:/hedgedoc/public/uploads

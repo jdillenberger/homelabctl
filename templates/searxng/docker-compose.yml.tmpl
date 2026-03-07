@@ -6,7 +6,7 @@ services:
     ports:
       - "{{index . "web_port"}}:8080"
     environment:
-      - SEARXNG_BASE_URL=http://localhost:{{index . "web_port"}}/
+      - SEARXNG_BASE_URL={{index . "routing_url"}}/
       - SEARXNG_SECRET={{index . "secret_key"}}
       - TZ={{index . "timezone"}}
     volumes:
