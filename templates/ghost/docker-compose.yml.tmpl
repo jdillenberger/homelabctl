@@ -16,7 +16,7 @@ services:
     volumes:
       - {{index . "data_dir"}}/content:/var/lib/ghost/content
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:2368/ghost/api/admin/site/ || exit 1"]
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:2368/', r => process.exit(r.statusCode < 400 ? 0 : 1)).on('error', () => process.exit(1))\""]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -52,16 +52,16 @@ services:
     volumes:
       - {{index . "data_dir"}}/db:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 30s
     deploy:
       resources:
         limits:
-          memory: 256M
-          pids: 100
+          memory: 512M
+          pids: 200
     security_opt:
       - no-new-privileges:true
     logging:
