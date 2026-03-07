@@ -13,7 +13,7 @@ services:
     volumes:
       - {{if index . "upload_location"}}{{index . "upload_location"}}{{else}}{{index . "data_dir"}}/upload{{end}}:/usr/src/app/upload
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:2283/api/server/ping || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:2283/api/server/ping || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
