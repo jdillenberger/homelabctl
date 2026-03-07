@@ -3,7 +3,9 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/labstack/echo/v4"
@@ -157,18 +159,41 @@ func (h *Handler) AppRestart(c echo.Context) error {
 	return c.HTML(http.StatusOK, fmt.Sprintf(`<p style="color:green;">%s restarted successfully.</p>`, name))
 }
 
-// AppLogs streams app logs via SSE.
+// AppLogsData holds data for the logs page template.
+type AppLogsData struct {
+	BasePage
+	App *app.DeployedApp
+}
+
+// AppLogs renders the logs viewer page.
 func (h *Handler) AppLogs(c echo.Context) error {
 	name := c.Param("name")
 
-	c.Response().Header().Set("Content-Type", "text/event-stream")
+	info, err := h.manager.GetDeployedInfo(name)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("app %s not found", name))
+	}
+
+	data := AppLogsData{
+		BasePage: h.basePage(),
+		App:      info,
+	}
+
+	return c.Render(http.StatusOK, "app_logs.html", data)
+}
+
+// AppLogsStream streams raw log output as plain text.
+func (h *Handler) AppLogsStream(c echo.Context) error {
+	name := c.Param("name")
+
+	c.Response().Header().Set("Content-Type", "text/plain; charset=utf-8")
 	c.Response().Header().Set("Cache-Control", "no-cache")
 	c.Response().Header().Set("Connection", "keep-alive")
+	c.Response().Header().Set("X-Content-Type-Options", "nosniff")
 
 	appDir := h.cfg.AppDir(name)
 
-	// Use a flushing writer wrapper
-	fw := &flushWriter{w: c.Response()}
+	fw := &ansiStripWriter{w: &flushWriter{w: c.Response()}}
 	err := h.compose.Logs(appDir, fw, true, 100)
 	if err != nil {
 		return err
@@ -185,4 +210,17 @@ func (fw *flushWriter) Write(p []byte) (int, error) {
 	n, err := fw.w.Write(p)
 	fw.w.Flush()
 	return n, err
+}
+
+var ansiRegex = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
+
+// ansiStripWriter strips ANSI escape codes before writing.
+type ansiStripWriter struct {
+	w io.Writer
+}
+
+func (a *ansiStripWriter) Write(p []byte) (int, error) {
+	cleaned := ansiRegex.ReplaceAll(p, nil)
+	_, err := a.w.Write(cleaned)
+	return len(p), err
 }

@@ -1,0 +1,82 @@
+{{template "base.html" .}}
+
+{{define "title"}}{{.App.Name}} Logs - homelabctl{{end}}
+
+{{define "content"}}
+<nav aria-label="breadcrumb">
+    <ul>
+        <li><a href="/">Portal</a></li>
+        <li><a href="/apps">Apps</a></li>
+        <li><a href="/apps/{{.App.Name}}">{{.App.Name}}</a></li>
+        <li>Logs</li>
+    </ul>
+</nav>
+
+<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.5rem;">
+    <h2 style="margin-bottom:0;">{{.App.Name}} &mdash; Logs</h2>
+    <button class="outline secondary" style="font-size:0.8rem; padding:0.3rem 0.7rem;" onclick="toggleAutoScroll()">
+        Auto-scroll: <span id="scroll-status">ON</span>
+    </button>
+</div>
+
+<div id="log-container" class="log-container">
+    <pre id="log-output"></pre>
+</div>
+
+<script>
+(function() {
+    var output = document.getElementById('log-output');
+    var container = document.getElementById('log-container');
+    var scrollStatus = document.getElementById('scroll-status');
+    var autoScroll = true;
+
+    window.toggleAutoScroll = function() {
+        autoScroll = !autoScroll;
+        scrollStatus.textContent = autoScroll ? 'ON' : 'OFF';
+        if (autoScroll) {
+            container.scrollTop = container.scrollHeight;
+        }
+    };
+
+    container.addEventListener('scroll', function() {
+        var atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 40;
+        if (!atBottom && autoScroll) {
+            autoScroll = false;
+            scrollStatus.textContent = 'OFF';
+        } else if (atBottom && !autoScroll) {
+            autoScroll = true;
+            scrollStatus.textContent = 'ON';
+        }
+    });
+
+    var maxLines = 1000;
+
+    function trimLines() {
+        var text = output.textContent;
+        var lines = text.split('\n');
+        if (lines.length > maxLines) {
+            output.textContent = lines.slice(lines.length - maxLines).join('\n');
+        }
+    }
+
+    fetch('/apps/{{.App.Name}}/logs/stream')
+        .then(function(response) {
+            var reader = response.body.getReader();
+            var decoder = new TextDecoder();
+
+            function read() {
+                reader.read().then(function(result) {
+                    if (result.done) return;
+                    output.textContent += decoder.decode(result.value, {stream: true});
+                    trimLines();
+                    if (autoScroll) {
+                        container.scrollTop = container.scrollHeight;
+                    }
+                    read();
+                });
+            }
+            read();
+        });
+})();
+</script>
+{{end}}

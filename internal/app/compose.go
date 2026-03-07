@@ -86,9 +86,9 @@ func (c *Compose) PSJson(projectDir string) (*exec.Result, error) {
 // Logs streams logs to the given writer.
 func (c *Compose) Logs(projectDir string, w io.Writer, follow bool, lines int) error {
 	bin, baseArgs := c.cmdParts()
-	fullArgs := make([]string, 0, len(baseArgs)+6)
+	fullArgs := make([]string, 0, len(baseArgs)+7)
 	fullArgs = append(fullArgs, baseArgs...)
-	fullArgs = append(fullArgs, "-f", projectDir+"/docker-compose.yml", "logs")
+	fullArgs = append(fullArgs, "-f", projectDir+"/docker-compose.yml", "logs", "--no-color")
 	if follow {
 		fullArgs = append(fullArgs, "-f")
 	}

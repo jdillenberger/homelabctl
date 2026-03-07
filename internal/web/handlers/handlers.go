@@ -60,6 +60,7 @@ func (h *Handler) Register(e *echo.Echo) {
 	e.POST("/apps/:name/stop", h.AppStop)
 	e.POST("/apps/:name/restart", h.AppRestart)
 	e.GET("/apps/:name/logs", h.AppLogs)
+	e.GET("/apps/:name/logs/stream", h.AppLogsStream)
 
 	// Fleet (discovery-only)
 	e.GET("/fleet", h.HandleFleetPage)
