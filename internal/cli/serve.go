@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -73,6 +72,9 @@ var serveCmd = &cobra.Command{
 			}
 		}
 
+		// Set up generalized scheduler (before mDNS so it can register jobs)
+		sched := scheduler.New()
+
 		// Start mDNS advertising
 		if cfg.MDNS.Enabled {
 			deployedApps, err := mgr.ListDeployed()
@@ -90,99 +92,64 @@ var serveCmd = &cobra.Command{
 			// Advertise app routing domains via Avahi CNAME
 			if cfg.MDNS.AdvertiseApps {
 				avahiMgr := mdns.NewAvahiCNAME(runner)
-				for _, appName := range deployedApps {
-					info, err := mgr.GetDeployedInfo(appName)
-					if err != nil || info.Routing == nil || !info.Routing.Enabled {
-						continue
+				defer avahiMgr.Shutdown()
+
+				var reconcileMu sync.Mutex
+				reconcileCNAMEs := func() {
+					reconcileMu.Lock()
+					defer reconcileMu.Unlock()
+
+					desired, err := mdns.DiscoverTraefikDomains(runner, cfg.Docker.Runtime)
+					if err != nil {
+						slog.Warn("Failed to discover Traefik domains", "error", err)
+						return
 					}
-					for _, domain := range info.Routing.Domains {
-						if strings.HasSuffix(domain, ".local") {
-							if err := avahiMgr.PublishCNAME(appName+":"+domain, domain); err != nil {
+
+					published := avahiMgr.ListPublished()
+
+					// Unpublish stale CNAMEs.
+					for domain := range published {
+						if !desired[domain] {
+							_ = avahiMgr.UnpublishCNAME(domain)
+						}
+					}
+
+					// Publish new CNAMEs.
+					for domain := range desired {
+						if !published[domain] {
+							if err := avahiMgr.PublishCNAME(domain, domain); err != nil {
 								slog.Warn("Failed to publish CNAME", "domain", domain, "error", err)
 							}
 						}
 					}
 				}
-				defer avahiMgr.Shutdown()
 
-				// reconcileApp reconciles CNAMEs for an app: unpublishes stale
-				// entries and publishes new ones. Pass nil routing to remove all.
-				// A per-app mutex prevents concurrent reconciles for the same app
-				// (e.g. OnDeploy callback + watcher firing in quick succession).
-				var reconcileMu sync.Mutex
-				reconcileApp := func(appName string, routing *app.DeployedRouting) {
-					reconcileMu.Lock()
-					defer reconcileMu.Unlock()
+				// Initial reconciliation
+				reconcileCNAMEs()
 
-					desired := make(map[string]bool)
-					if routing != nil && routing.Enabled {
-						for _, d := range routing.Domains {
-							if strings.HasSuffix(d, ".local") {
-								desired[d] = true
-							}
-						}
-					}
-
-					// Snapshot published state once for consistent view.
-					published := avahiMgr.ListPublished()
-
-					// Unpublish stale CNAMEs for this app.
-					for key := range published {
-						if !strings.HasPrefix(key, appName+":") {
-							continue
-						}
-						domain := strings.TrimPrefix(key, appName+":")
-						if !desired[domain] {
-							_ = avahiMgr.UnpublishCNAME(key)
-						}
-					}
-
-					// Publish new CNAMEs.
-					for d := range desired {
-						key := appName + ":" + d
-						if !published[key] {
-							if err := avahiMgr.PublishCNAME(key, d); err != nil {
-								slog.Warn("Failed to publish CNAME", "domain", d, "error", err)
-							}
-						}
-					}
-
-					// Regenerate dashboard route when traefik changes.
+				// Wire Manager callbacks for immediate reconciliation
+				mgr.OnDeploy = func(appName string, routing *app.DeployedRouting) {
+					reconcileCNAMEs()
 					if appName == "traefik" && cfg.Routing.Enabled {
 						if err := app.GenerateDashboardRoute(cfg); err != nil {
 							slog.Warn("Failed to regenerate dashboard route", "error", err)
 						}
 					}
 				}
-
-				// Wire Manager callbacks for dynamic CNAME management
-				mgr.OnDeploy = func(appName string, routing *app.DeployedRouting) {
-					reconcileApp(appName, routing)
-				}
 				mgr.OnRemove = func(appName string) {
-					reconcileApp(appName, nil)
+					reconcileCNAMEs()
 				}
 
-				// Start filesystem watcher for live CNAME reconciliation
-				deployWatcher, watchErr := app.NewDeployWatcher(cfg.AppsDir, func(appName string, info *app.DeployedApp) {
-					var routing *app.DeployedRouting
-					if info != nil {
-						routing = info.Routing
-					}
-					reconcileApp(appName, routing)
-				})
-				if watchErr != nil {
-					slog.Warn("Failed to start deploy watcher", "error", watchErr)
-				} else {
-					deployWatcher.Start()
-					defer deployWatcher.Stop()
-					slog.Info("Deploy watcher started", "dir", cfg.AppsDir)
+				// Register periodic reconciliation
+				if err := sched.Add(scheduler.Job{
+					Name:     "mdns-cname-sync",
+					Schedule: cfg.MDNS.Schedule,
+					Func:     reconcileCNAMEs,
+				}); err != nil {
+					slog.Warn("mDNS CNAME sync scheduler failed to start", "error", err)
 				}
 			}
 		}
-
-		// Set up generalized scheduler
-		sched := scheduler.New()
 
 		// Set up alert manager (used by multiple jobs)
 		var alertMgr *alert.Manager

@@ -67,8 +67,9 @@ type DockerConfig struct {
 }
 
 type MDNSConfig struct {
-	Enabled       bool `mapstructure:"enabled" yaml:"enabled"`
-	AdvertiseApps bool `mapstructure:"advertise_apps" yaml:"advertise_apps"`
+	Enabled       bool   `mapstructure:"enabled" yaml:"enabled"`
+	AdvertiseApps bool   `mapstructure:"advertise_apps" yaml:"advertise_apps"`
+	Schedule      string `mapstructure:"schedule" yaml:"schedule"`
 }
 
 type BackupConfig struct {
@@ -163,6 +164,7 @@ func DefaultConfig() *Config {
 		MDNS: MDNSConfig{
 			Enabled:       true,
 			AdvertiseApps: true,
+			Schedule:      "@every 30s",
 		},
 		Backup: BackupConfig{
 			Enabled:  false,
@@ -217,6 +219,7 @@ func SetDefaults() {
 	viper.SetDefault("docker.default_network", d.Docker.DefaultNetwork)
 	viper.SetDefault("mdns.enabled", d.MDNS.Enabled)
 	viper.SetDefault("mdns.advertise_apps", d.MDNS.AdvertiseApps)
+	viper.SetDefault("mdns.schedule", d.MDNS.Schedule)
 	viper.SetDefault("backup.enabled", d.Backup.Enabled)
 	viper.SetDefault("backup.borg_repo", d.Backup.BorgRepo)
 	viper.SetDefault("backup.schedule", d.Backup.Schedule)
