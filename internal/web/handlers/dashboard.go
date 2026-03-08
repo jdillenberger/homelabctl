@@ -183,7 +183,7 @@ func (h *Handler) DashboardPeers(c echo.Context) error {
 
 	var peers []FleetPeer
 	for _, p := range resp.Peers {
-		if p.Hostname == h.cfg.Hostname {
+		if p.Hostname == h.cfg.Hostname || p.Address == "" {
 			continue
 		}
 		port := p.Port
