@@ -27,9 +27,8 @@ type Config struct {
 	Network NetworkConfig `mapstructure:"network" yaml:"network"`
 	Web     WebConfig     `mapstructure:"web" yaml:"web"`
 	Docker  DockerConfig  `mapstructure:"docker" yaml:"docker"`
-	MDNS    MDNSConfig    `mapstructure:"mdns" yaml:"mdns"`
 	Backup  BackupConfig  `mapstructure:"backup" yaml:"backup"`
-	Alerts  AlertsConfig  `mapstructure:"alerts" yaml:"alerts"`
+	Labalert LabalertConfig `mapstructure:"labalert" yaml:"labalert"`
 	Health  HealthConfig  `mapstructure:"health" yaml:"health"`
 	Updates UpdatesConfig `mapstructure:"updates" yaml:"updates"`
 	Prune   PruneConfig   `mapstructure:"prune" yaml:"prune"`
@@ -37,6 +36,13 @@ type Config struct {
 	Routing RoutingConfig `mapstructure:"routing" yaml:"routing"`
 
 	Integrations IntegrationsConfig `mapstructure:"integrations" yaml:"integrations"`
+
+	PeerScanner PeerScannerConfig `mapstructure:"peer_scanner" yaml:"peer_scanner"`
+}
+
+type PeerScannerConfig struct {
+	URL    string `mapstructure:"url" yaml:"url"`       // default: http://localhost:7120
+	Secret string `mapstructure:"secret" yaml:"secret"` // fleet PSK for Bearer auth
 }
 
 type RoutingConfig struct {
@@ -66,12 +72,6 @@ type DockerConfig struct {
 	DefaultNetwork string `mapstructure:"default_network" yaml:"default_network"`
 }
 
-type MDNSConfig struct {
-	Enabled       bool   `mapstructure:"enabled" yaml:"enabled"`
-	AdvertiseApps bool   `mapstructure:"advertise_apps" yaml:"advertise_apps"`
-	Schedule      string `mapstructure:"schedule" yaml:"schedule"`
-}
-
 type BackupConfig struct {
 	Enabled   bool            `mapstructure:"enabled" yaml:"enabled"`
 	BorgRepo  string          `mapstructure:"borg_repo" yaml:"borg_repo"`
@@ -85,25 +85,8 @@ type RetentionConfig struct {
 	KeepMonthly int `mapstructure:"keep_monthly" yaml:"keep_monthly"`
 }
 
-type AlertsConfig struct {
-	Enabled  bool                `mapstructure:"enabled" yaml:"enabled"`
-	Schedule string              `mapstructure:"schedule" yaml:"schedule"`
-	Cooldown string              `mapstructure:"cooldown" yaml:"cooldown"`
-	Channels AlertChannelsConfig `mapstructure:"channels" yaml:"channels"`
-}
-
-type AlertChannelsConfig struct {
-	Webhook *WebhookChannelConfig `mapstructure:"webhook" yaml:"webhook,omitempty"`
-	Ntfy    *NtfyChannelConfig    `mapstructure:"ntfy" yaml:"ntfy,omitempty"`
-}
-
-type WebhookChannelConfig struct {
-	URL string `mapstructure:"url" yaml:"url"`
-}
-
-type NtfyChannelConfig struct {
-	URL   string `mapstructure:"url" yaml:"url"`
-	Token string `mapstructure:"token" yaml:"token,omitempty"`
+type LabalertConfig struct {
+	URL string `mapstructure:"url" yaml:"url"` // default: http://127.0.0.1:7150
 }
 
 type HealthConfig struct {
@@ -161,11 +144,6 @@ func DefaultConfig() *Config {
 			ComposeCommand: "docker compose",
 			DefaultNetwork: "homelabctl-net",
 		},
-		MDNS: MDNSConfig{
-			Enabled:       true,
-			AdvertiseApps: true,
-			Schedule:      "@every 30s",
-		},
 		Backup: BackupConfig{
 			Enabled:  false,
 			BorgRepo: "/mnt/backup/borg",
@@ -176,10 +154,8 @@ func DefaultConfig() *Config {
 				KeepMonthly: 6,
 			},
 		},
-		Alerts: AlertsConfig{
-			Enabled:  false,
-			Schedule: "*/5 * * * *",
-			Cooldown: "15m",
+		Labalert: LabalertConfig{
+			URL: "http://127.0.0.1:7150",
 		},
 		Health: HealthConfig{
 			Enabled:    false,
@@ -194,8 +170,11 @@ func DefaultConfig() *Config {
 			Enabled:  false,
 			Schedule: "0 5 * * 0",
 		},
+		PeerScanner: PeerScannerConfig{
+			URL: "http://localhost:7120",
+		},
 		Routing: RoutingConfig{
-			Enabled:  false,
+			Enabled:  true,
 			Provider: "traefik",
 			Domain:   "",
 			HTTPS: HTTPSConfig{
@@ -217,18 +196,13 @@ func SetDefaults() {
 	viper.SetDefault("docker.runtime", d.Docker.Runtime)
 	viper.SetDefault("docker.compose_command", d.Docker.ComposeCommand)
 	viper.SetDefault("docker.default_network", d.Docker.DefaultNetwork)
-	viper.SetDefault("mdns.enabled", d.MDNS.Enabled)
-	viper.SetDefault("mdns.advertise_apps", d.MDNS.AdvertiseApps)
-	viper.SetDefault("mdns.schedule", d.MDNS.Schedule)
 	viper.SetDefault("backup.enabled", d.Backup.Enabled)
 	viper.SetDefault("backup.borg_repo", d.Backup.BorgRepo)
 	viper.SetDefault("backup.schedule", d.Backup.Schedule)
 	viper.SetDefault("backup.retention.keep_daily", d.Backup.Retention.KeepDaily)
 	viper.SetDefault("backup.retention.keep_weekly", d.Backup.Retention.KeepWeekly)
 	viper.SetDefault("backup.retention.keep_monthly", d.Backup.Retention.KeepMonthly)
-	viper.SetDefault("alerts.enabled", d.Alerts.Enabled)
-	viper.SetDefault("alerts.schedule", d.Alerts.Schedule)
-	viper.SetDefault("alerts.cooldown", d.Alerts.Cooldown)
+	viper.SetDefault("labalert.url", d.Labalert.URL)
 	viper.SetDefault("health.enabled", d.Health.Enabled)
 	viper.SetDefault("health.schedule", d.Health.Schedule)
 	viper.SetDefault("health.max_history", d.Health.MaxHistory)
@@ -236,6 +210,8 @@ func SetDefaults() {
 	viper.SetDefault("updates.schedule", d.Updates.Schedule)
 	viper.SetDefault("prune.enabled", d.Prune.Enabled)
 	viper.SetDefault("prune.schedule", d.Prune.Schedule)
+	viper.SetDefault("peer_scanner.url", d.PeerScanner.URL)
+	viper.SetDefault("peer_scanner.secret", d.PeerScanner.Secret)
 	viper.SetDefault("routing.enabled", d.Routing.Enabled)
 	viper.SetDefault("routing.provider", d.Routing.Provider)
 	viper.SetDefault("routing.domain", d.Routing.Domain)

@@ -1,37 +1,38 @@
 package handlers
 
 import (
+	"context"
+	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v4"
 
-	"github.com/jdillenberger/homelabctl/internal/alert"
+	"github.com/jdillenberger/homelabctl/internal/alertclient"
 )
 
 // AlertsPageData holds data for the alerts template.
 type AlertsPageData struct {
 	BasePage
-	Rules   []alert.Rule
-	History []alert.Alert
+	Rules   json.RawMessage
+	History json.RawMessage
 }
 
 // HandleAlertsPage renders the alerts management page.
 func (h *Handler) HandleAlertsPage(c echo.Context) error {
-	store := alert.NewStore(h.cfg.DataDir)
+	ctx, cancel := context.WithTimeout(c.Request().Context(), 5*time.Second)
+	defer cancel()
 
-	rules, err := store.LoadRules()
+	client := alertclient.New(h.cfg.Labalert.URL)
+
+	rules, err := client.Rules(ctx)
 	if err != nil {
-		rules = nil
+		rules = json.RawMessage("[]")
 	}
 
-	history, err := store.LoadHistory()
+	history, err := client.History(ctx, 50)
 	if err != nil {
-		history = nil
-	}
-
-	// Show last 50 entries
-	if len(history) > 50 {
-		history = history[len(history)-50:]
+		history = json.RawMessage("[]")
 	}
 
 	return c.Render(http.StatusOK, "alerts.html", AlertsPageData{
@@ -43,40 +44,39 @@ func (h *Handler) HandleAlertsPage(c echo.Context) error {
 
 // AlertsPartial renders a compact list of recent alerts for the sidebar.
 func (h *Handler) AlertsPartial(c echo.Context) error {
-	store := alert.NewStore(h.cfg.DataDir)
-	history, err := store.LoadHistory()
+	ctx, cancel := context.WithTimeout(c.Request().Context(), 5*time.Second)
+	defer cancel()
+
+	client := alertclient.New(h.cfg.Labalert.URL)
+	history, err := client.History(ctx, 5)
 	if err != nil {
-		history = nil
-	}
-	// Show last 5 entries
-	if len(history) > 5 {
-		history = history[len(history)-5:]
+		history = json.RawMessage("[]")
 	}
 	return c.Render(http.StatusOK, "alerts_partial.html", history)
 }
 
-// APIAlertRules returns alert rules as JSON.
+// APIAlertRules returns alert rules as JSON (proxied from labalert).
 func (h *Handler) APIAlertRules(c echo.Context) error {
-	store := alert.NewStore(h.cfg.DataDir)
-	rules, err := store.LoadRules()
+	ctx, cancel := context.WithTimeout(c.Request().Context(), 5*time.Second)
+	defer cancel()
+
+	client := alertclient.New(h.cfg.Labalert.URL)
+	rules, err := client.Rules(ctx)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return c.JSON(http.StatusServiceUnavailable, map[string]string{"error": err.Error()})
 	}
-	if rules == nil {
-		rules = []alert.Rule{}
-	}
-	return c.JSON(http.StatusOK, rules)
+	return c.JSONBlob(http.StatusOK, rules)
 }
 
-// APIAlertHistory returns alert history as JSON.
+// APIAlertHistory returns alert history as JSON (proxied from labalert).
 func (h *Handler) APIAlertHistory(c echo.Context) error {
-	store := alert.NewStore(h.cfg.DataDir)
-	history, err := store.LoadHistory()
+	ctx, cancel := context.WithTimeout(c.Request().Context(), 5*time.Second)
+	defer cancel()
+
+	client := alertclient.New(h.cfg.Labalert.URL)
+	history, err := client.History(ctx, 0)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return c.JSON(http.StatusServiceUnavailable, map[string]string{"error": err.Error()})
 	}
-	if history == nil {
-		history = []alert.Alert{}
-	}
-	return c.JSON(http.StatusOK, history)
+	return c.JSONBlob(http.StatusOK, history)
 }

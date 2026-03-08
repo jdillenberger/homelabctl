@@ -12,6 +12,7 @@ import (
 	"github.com/jdillenberger/homelabctl/internal/app"
 	"github.com/jdillenberger/homelabctl/internal/config"
 	"github.com/jdillenberger/homelabctl/internal/exec"
+	"github.com/jdillenberger/homelabctl/internal/peerscan"
 	"github.com/jdillenberger/homelabctl/internal/web/handlers"
 	"github.com/jdillenberger/homelabctl/internal/web/templates"
 	"github.com/jdillenberger/homelabctl/static"
@@ -81,7 +82,8 @@ func NewServer(cfg *config.Config, manager *app.Manager, runner *exec.Runner, de
 	}
 
 	// Register handlers
-	h := handlers.New(cfg, manager, runner, healthCache)
+	peerClient := peerscan.NewClient(cfg.PeerScanner.URL, cfg.PeerScanner.Secret)
+	h := handlers.New(cfg, manager, runner, healthCache, peerClient)
 	h.Register(e)
 
 	return s, nil

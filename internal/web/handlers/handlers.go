@@ -6,6 +6,7 @@ import (
 	"github.com/jdillenberger/homelabctl/internal/app"
 	"github.com/jdillenberger/homelabctl/internal/config"
 	"github.com/jdillenberger/homelabctl/internal/exec"
+	"github.com/jdillenberger/homelabctl/internal/peerscan"
 )
 
 // BasePage holds common template data shared across all pages.
@@ -22,16 +23,18 @@ type Handler struct {
 	runner      *exec.Runner
 	compose     *app.Compose
 	healthCache *app.HealthCache
+	peerClient  *peerscan.Client
 }
 
 // New creates a new Handler with all dependencies.
-func New(cfg *config.Config, manager *app.Manager, runner *exec.Runner, healthCache *app.HealthCache) *Handler {
+func New(cfg *config.Config, manager *app.Manager, runner *exec.Runner, healthCache *app.HealthCache, peerClient *peerscan.Client) *Handler {
 	return &Handler{
 		cfg:         cfg,
 		manager:     manager,
 		runner:      runner,
 		compose:     app.NewCompose(runner, cfg.Docker.ComposeCommand),
 		healthCache: healthCache,
+		peerClient:  peerClient,
 	}
 }
 

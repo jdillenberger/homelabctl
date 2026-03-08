@@ -7,11 +7,10 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/spf13/cobra"
 
-	"github.com/jdillenberger/homelabctl/internal/alert"
+	"github.com/jdillenberger/homelabctl/internal/alertclient"
 	"github.com/jdillenberger/homelabctl/internal/app"
 	"github.com/jdillenberger/homelabctl/internal/backup"
 	"github.com/jdillenberger/homelabctl/internal/config"
@@ -22,7 +21,7 @@ import (
 var daemonSchedulerCmd = &cobra.Command{
 	Use:   "scheduler",
 	Short: "Run background jobs",
-	Long:  "Run scheduled background jobs (backups, health checks, alerts, auto-updates, docker prune).",
+	Long:  "Run scheduled background jobs (backups, health checks, auto-updates, docker prune).",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := config.Load()
 		if err != nil {
@@ -58,17 +57,10 @@ var daemonSchedulerCmd = &cobra.Command{
 func startScheduler(cfg *config.Config, mgr *app.Manager, runner *exec.Runner) (*scheduler.Scheduler, error) {
 	sched := scheduler.New()
 
-	// Alert manager (used by multiple jobs)
-	var alertMgr *alert.Manager
-	if cfg.Alerts.Enabled {
-		alertStore := alert.NewStore(cfg.DataDir)
-		cooldown, err := time.ParseDuration(cfg.Alerts.Cooldown)
-		if err != nil {
-			slog.Warn("Invalid alert cooldown, using 15m", "error", err)
-			cooldown = 15 * time.Minute
-		}
-		alertMgr = alert.NewManager(alertStore, cooldown)
-		alertMgr.RegisterNotifiers(cfg.Alerts.Channels)
+	// Alert client for pushing events to labalert
+	var alertClient *alertclient.Client
+	if cfg.Labalert.URL != "" {
+		alertClient = alertclient.New(cfg.Labalert.URL)
 	}
 
 	// Backup job
@@ -97,8 +89,15 @@ func startScheduler(cfg *config.Config, mgr *app.Manager, runner *exec.Runner) (
 
 				if _, borgErr := borg.Create(configFile); borgErr != nil {
 					slog.Error("Backup failed", "app", appName, "error", borgErr)
-					if alertMgr != nil {
-						alertMgr.NotifyBackupFailed(appName, borgErr)
+					if alertClient != nil {
+						if pushErr := alertClient.PushEvent(context.Background(), alertclient.Event{
+							Type:     "backup-failed",
+							App:      appName,
+							Message:  fmt.Sprintf("Backup failed for %s: %v", appName, borgErr),
+							Severity: "critical",
+						}); pushErr != nil {
+							slog.Error("Failed to push backup-failed event to labalert", "error", pushErr)
+						}
 					}
 				}
 
@@ -130,19 +129,13 @@ func startScheduler(cfg *config.Config, mgr *app.Manager, runner *exec.Runner) (
 				return
 			}
 
-			var results []app.HealthResult
 			registry := mgr.Registry()
 			for _, appName := range deployed {
 				meta, ok := registry.Get(appName)
 				if !ok {
 					continue
 				}
-				result := healthChecker.CheckApp(meta, compose, cfg.AppDir(appName))
-				results = append(results, result)
-			}
-
-			if alertMgr != nil {
-				alertMgr.Evaluate(results)
+				_ = healthChecker.CheckApp(meta, compose, cfg.AppDir(appName))
 			}
 		}
 		if err := sched.Add(scheduler.Job{
@@ -151,40 +144,6 @@ func startScheduler(cfg *config.Config, mgr *app.Manager, runner *exec.Runner) (
 			Func:     healthFunc,
 		}); err != nil {
 			slog.Warn("Health check scheduler failed to start", "error", err)
-		}
-	}
-
-	// Alert monitoring job (only if health is not enabled, to avoid duplicate checks)
-	if cfg.Alerts.Enabled && !cfg.Health.Enabled {
-		compose := app.NewCompose(runner, cfg.Docker.ComposeCommand)
-		healthChecker := app.NewHealthChecker()
-
-		alertFunc := func() {
-			deployed, err := mgr.ListDeployed()
-			if err != nil {
-				slog.Error("Alert monitor: failed to list deployed apps", "error", err)
-				return
-			}
-
-			var results []app.HealthResult
-			registry := mgr.Registry()
-			for _, appName := range deployed {
-				meta, ok := registry.Get(appName)
-				if !ok {
-					continue
-				}
-				result := healthChecker.CheckApp(meta, compose, cfg.AppDir(appName))
-				results = append(results, result)
-			}
-
-			alertMgr.Evaluate(results)
-		}
-		if err := sched.Add(scheduler.Job{
-			Name:     "alert-monitor",
-			Schedule: cfg.Alerts.Schedule,
-			Func:     alertFunc,
-		}); err != nil {
-			slog.Warn("Alert monitor scheduler failed to start", "error", err)
 		}
 	}
 
@@ -205,23 +164,44 @@ func startScheduler(cfg *config.Config, mgr *app.Manager, runner *exec.Runner) (
 					slog.Info("Auto-update: building", "app", appName)
 					if _, err := compose.UpWithBuild(appDir); err != nil {
 						slog.Error("Auto-update: build/up failed", "app", appName, "error", err)
-						if alertMgr != nil {
-							alertMgr.NotifyUpdateFailed(appName, err)
+						if alertClient != nil {
+							if pushErr := alertClient.PushEvent(context.Background(), alertclient.Event{
+								Type:     "update-failed",
+								App:      appName,
+								Message:  fmt.Sprintf("Auto-update failed for %s: %v", appName, err),
+								Severity: "warning",
+							}); pushErr != nil {
+								slog.Error("Failed to push update-failed event to labalert", "error", pushErr)
+							}
 						}
 					}
 				} else {
 					slog.Info("Auto-update: pulling images", "app", appName)
 					if _, err := compose.Pull(appDir); err != nil {
 						slog.Error("Auto-update: pull failed", "app", appName, "error", err)
-						if alertMgr != nil {
-							alertMgr.NotifyUpdateFailed(appName, err)
+						if alertClient != nil {
+							if pushErr := alertClient.PushEvent(context.Background(), alertclient.Event{
+								Type:     "update-failed",
+								App:      appName,
+								Message:  fmt.Sprintf("Auto-update pull failed for %s: %v", appName, err),
+								Severity: "warning",
+							}); pushErr != nil {
+								slog.Error("Failed to push update-failed event to labalert", "error", pushErr)
+							}
 						}
 						continue
 					}
 					if _, err := compose.Up(appDir); err != nil {
 						slog.Error("Auto-update: up failed", "app", appName, "error", err)
-						if alertMgr != nil {
-							alertMgr.NotifyUpdateFailed(appName, err)
+						if alertClient != nil {
+							if pushErr := alertClient.PushEvent(context.Background(), alertclient.Event{
+								Type:     "update-failed",
+								App:      appName,
+								Message:  fmt.Sprintf("Auto-update up failed for %s: %v", appName, err),
+								Severity: "warning",
+							}); pushErr != nil {
+								slog.Error("Failed to push update-failed event to labalert", "error", pushErr)
+							}
 						}
 					}
 				}

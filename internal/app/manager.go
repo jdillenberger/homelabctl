@@ -19,7 +19,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jdillenberger/homelabctl/internal/config"
 	"github.com/jdillenberger/homelabctl/internal/exec"
-	"github.com/jdillenberger/homelabctl/internal/mdns"
 	"gopkg.in/yaml.v3"
 )
 
@@ -90,11 +89,6 @@ func (m *Manager) ensureNetwork() error {
 		if _, inspectErr := m.runner.Run(m.cfg.Docker.Runtime, "network", "inspect", network); inspectErr != nil {
 			return fmt.Errorf("ensuring docker network %s: %w", network, err)
 		}
-	}
-
-	// Prevent Avahi from advertising on Docker bridge interfaces.
-	if m.cfg.MDNS.Enabled {
-		mdns.EnsureAvahiConfig()
 	}
 
 	return nil
@@ -199,7 +193,7 @@ func (m *Manager) Deploy(appName string, opts DeployOptions) error {
 	}
 
 	// Add HTTPS status for all apps so templates can conditionally set protocol
-	if m.cfg.Routing.Enabled && m.cfg.Routing.HTTPS.Enabled {
+	if m.cfg.Routing.HTTPS.Enabled {
 		mergedValues["https_enabled"] = "true"
 		mergedValues["ca_cert_path"] = filepath.Join(m.cfg.DataPath("traefik"), "certs", "ca.crt")
 	} else {
@@ -435,7 +429,7 @@ func (m *Manager) Deploy(appName string, opts DeployOptions) error {
 		executeHooks(meta.Hooks.PostDeploy, mergedValues, m.runner)
 	}
 
-	// Invoke deploy callback (e.g. for Avahi CNAME publishing)
+	// Invoke deploy callback (e.g. for dashboard route regeneration)
 	if m.OnDeploy != nil {
 		m.OnDeploy(appName, deployed.Routing)
 	}
@@ -531,7 +525,7 @@ func (m *Manager) Remove(appName string, keepData bool) error {
 		return fmt.Errorf("removing app directory: %w", err)
 	}
 
-	// Invoke remove callback (e.g. for Avahi CNAME unpublishing)
+	// Invoke remove callback
 	if m.OnRemove != nil {
 		m.OnRemove(appName)
 	}

@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/jdillenberger/homelabctl/internal/config"
-	"github.com/jdillenberger/homelabctl/internal/mdns"
+	"github.com/jdillenberger/homelabctl/internal/netutil"
 )
 
 func init() {
@@ -139,7 +139,7 @@ var caQRCmd = &cobra.Command{
 			return err
 		}
 
-		ip := mdns.DetectLocalIP()
+		ip := netutil.DetectLocalIP()
 		if ip == "" {
 			return fmt.Errorf("could not detect local IP address")
 		}

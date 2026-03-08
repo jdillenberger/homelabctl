@@ -11,7 +11,7 @@ import (
 	"github.com/jdillenberger/homelabctl/internal/config"
 )
 
-var validComponents = []string{"dashboard", "mdns", "scheduler"}
+var validComponents = []string{"dashboard", "scheduler"}
 
 func init() {
 	rootCmd.AddCommand(serviceCmd)
@@ -57,8 +57,6 @@ func serviceDescription(component string) string {
 	switch component {
 	case "dashboard":
 		return "homelabctl web dashboard"
-	case "mdns":
-		return "homelabctl mDNS advertiser"
 	case "scheduler":
 		return "homelabctl background scheduler"
 	default:
@@ -105,7 +103,7 @@ func validateComponent(component string) error {
 var serviceInstallCmd = &cobra.Command{
 	Use:       "install [component]",
 	Short:     "Install the homelabctl systemd service",
-	Long:      "Install a systemd service. Optionally specify a component (dashboard, mdns, scheduler).",
+	Long:      "Install a systemd service. Optionally specify a component (dashboard, scheduler).",
 	Args:      cobra.MaximumNArgs(1),
 	ValidArgs: validComponents,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -149,7 +147,7 @@ var serviceInstallCmd = &cobra.Command{
 var serviceUninstallCmd = &cobra.Command{
 	Use:       "uninstall [component]",
 	Short:     "Uninstall the homelabctl systemd service",
-	Long:      "Uninstall a systemd service. Optionally specify a component (dashboard, mdns, scheduler).",
+	Long:      "Uninstall a systemd service. Optionally specify a component (dashboard, scheduler).",
 	Args:      cobra.MaximumNArgs(1),
 	ValidArgs: validComponents,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -183,7 +181,7 @@ var serviceUninstallCmd = &cobra.Command{
 var serviceStatusCmd = &cobra.Command{
 	Use:       "status [component]",
 	Short:     "Show homelabctl service status",
-	Long:      "Show systemd service status. Optionally specify a component (dashboard, mdns, scheduler).",
+	Long:      "Show systemd service status. Optionally specify a component (dashboard, scheduler).",
 	Args:      cobra.MaximumNArgs(1),
 	ValidArgs: validComponents,
 	RunE: func(cmd *cobra.Command, args []string) error {

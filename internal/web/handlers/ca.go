@@ -13,7 +13,7 @@ import (
 	"github.com/labstack/echo/v4"
 	qrcode "github.com/skip2/go-qrcode"
 
-	"github.com/jdillenberger/homelabctl/internal/mdns"
+	"github.com/jdillenberger/homelabctl/internal/netutil"
 )
 
 // CAPageData holds data for the CA trust page template.
@@ -175,7 +175,7 @@ func (h *Handler) HandleCAQRCode(c echo.Context) error {
 // caIPBaseURL returns the base HTTP URL using the server's IP address.
 // IP is used instead of hostname because mDNS is unreliable on mobile devices.
 func (h *Handler) caIPBaseURL() string {
-	ip := mdns.DetectLocalIP()
+	ip := netutil.DetectLocalIP()
 	if ip == "" {
 		ip = h.cfg.Hostname + "." + h.cfg.Network.Domain
 	}

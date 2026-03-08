@@ -7,7 +7,7 @@
 
 <article>
     <header><strong>Hosts</strong></header>
-    {{if .Hosts}}
+    {{if or .Self.Hostname .Peers}}
     <div class="overflow-auto">
     <table>
         <thead>
@@ -16,18 +16,31 @@
                 <th>Role</th>
                 <th>Address</th>
                 <th>Port</th>
-                <th>Apps</th>
+                <th>Version</th>
                 <th>Status</th>
             </tr>
         </thead>
         <tbody>
-            {{range .Hosts}}
+            {{with .Self}}
+            <tr>
+                <td><strong>{{.Hostname}}</strong> (self)</td>
+                <td>{{.Role}}</td>
+                <td>{{if .Address}}{{.Address}}{{else}}-{{end}}</td>
+                <td>{{.Port}}</td>
+                <td>{{if .Version}}{{.Version}}{{else}}-{{end}}</td>
+                <td>
+                    {{if .Online}}<span class="badge badge-running">online</span>
+                    {{else}}<span class="badge badge-stopped">offline</span>{{end}}
+                </td>
+            </tr>
+            {{end}}
+            {{range .Peers}}
             <tr>
                 <td>{{.Hostname}}</td>
                 <td>{{.Role}}</td>
                 <td>{{if .Address}}{{.Address}}{{else}}-{{end}}</td>
                 <td>{{.Port}}</td>
-                <td>{{if .Apps}}{{range $i, $a := .Apps}}{{if $i}}, {{end}}{{$a}}{{end}}{{else}}-{{end}}</td>
+                <td>{{if .Version}}{{.Version}}{{else}}-{{end}}</td>
                 <td>
                     {{if .Online}}<span class="badge badge-running">online</span>
                     {{else}}<span class="badge badge-stopped">offline</span>{{end}}
@@ -39,8 +52,8 @@
     </div>
     {{else}}
     <div class="empty-state">
-        <strong>No hosts configured</strong>
-        <p>Add hosts to your fleet configuration.</p>
+        <strong>No hosts found</strong>
+        <p>Ensure peer-scanner is running.</p>
     </div>
     {{end}}
 </article>
@@ -49,8 +62,7 @@
     <header><strong>Fleet Config</strong></header>
     <table>
         <tr><td><strong>Fleet Name</strong></td><td>{{.FleetName}}</td></tr>
-        <tr><td><strong>Domain Suffix</strong></td><td>{{.DomainSuffix}}</td></tr>
-        <tr><td><strong>Host Count</strong></td><td>{{len .Hosts}}</td></tr>
+        <tr><td><strong>Peer Count</strong></td><td>{{len .Peers}}</td></tr>
     </table>
 </article>
 

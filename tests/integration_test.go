@@ -42,8 +42,6 @@ func TestIntegrationAppLifecycle(t *testing.T) {
 			"docker:\n"+
 			"  compose_command: docker compose\n"+
 			"  default_network: homelabctl-test-net\n"+
-			"mdns:\n"+
-			"  enabled: false\n"+
 			"backup:\n"+
 			"  enabled: false\n",
 	), 0o644)

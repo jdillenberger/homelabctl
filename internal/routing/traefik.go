@@ -1,4 +1,4 @@
-package mdns
+package routing
 
 import (
 	"encoding/json"
@@ -14,10 +14,7 @@ var (
 	hostExtractRE = regexp.MustCompile("Host\\(`([^`]+)`\\)")
 )
 
-// DiscoverTraefikDomains queries running Docker containers for Traefik router
-// labels and returns the set of .local domains found.
 func DiscoverTraefikDomains(runner *exec.Runner, runtime string) (map[string]bool, error) {
-	// Get container IDs with traefik.enable=true
 	result, err := runner.Run(runtime, "ps", "-q", "--filter", "label=traefik.enable=true")
 	if err != nil {
 		return nil, fmt.Errorf("listing traefik containers: %w", err)
@@ -28,7 +25,6 @@ func DiscoverTraefikDomains(runner *exec.Runner, runtime string) (map[string]boo
 		return map[string]bool{}, nil
 	}
 
-	// Inspect labels for all containers in one call
 	args := append([]string{"inspect", "--format", "{{json .Config.Labels}}"}, ids...)
 	result, err = runner.Run(runtime, args...)
 	if err != nil {
@@ -48,7 +44,7 @@ func DiscoverTraefikDomains(runner *exec.Runner, runtime string) (map[string]boo
 		}
 
 		for key, value := range labels {
-			if !isTraefikRouterRule(key) {
+			if !routerRuleRE.MatchString(key) {
 				continue
 			}
 			for _, host := range ExtractHosts(value) {
@@ -62,7 +58,6 @@ func DiscoverTraefikDomains(runner *exec.Runner, runtime string) (map[string]boo
 	return domains, nil
 }
 
-// ExtractHosts parses Host(`...`) expressions from a Traefik router rule string.
 func ExtractHosts(rule string) []string {
 	matches := hostExtractRE.FindAllStringSubmatch(rule, -1)
 	var hosts []string
@@ -70,9 +65,4 @@ func ExtractHosts(rule string) []string {
 		hosts = append(hosts, m[1])
 	}
 	return hosts
-}
-
-// isTraefikRouterRule returns true if the label key matches traefik.http.routers.*.rule.
-func isTraefikRouterRule(key string) bool {
-	return routerRuleRE.MatchString(key)
 }

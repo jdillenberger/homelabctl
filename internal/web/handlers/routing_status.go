@@ -5,7 +5,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	"github.com/jdillenberger/homelabctl/internal/mdns"
+	"github.com/jdillenberger/homelabctl/internal/routing"
 )
 
 // APIRoutingStatus returns the list of domains currently routed by traefik.
@@ -13,7 +13,7 @@ import (
 func (h *Handler) APIRoutingStatus(c echo.Context) error {
 	var domains []string
 	if h.cfg.Routing.Enabled {
-		active, err := mdns.DiscoverTraefikDomains(h.runner, h.cfg.Docker.Runtime)
+		active, err := routing.DiscoverTraefikDomains(h.runner, h.cfg.Docker.Runtime)
 		if err == nil {
 			for domain := range active {
 				domains = append(domains, domain)

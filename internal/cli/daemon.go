@@ -20,7 +20,6 @@ func init() {
 	daemonCmd.Flags().IntP("port", "p", 0, "port to listen on (overrides config)")
 	daemonCmd.Flags().Bool("dev", false, "enable development mode with livereload")
 	daemonCmd.AddCommand(daemonDashboardCmd)
-	daemonCmd.AddCommand(daemonMdnsCmd)
 	daemonCmd.AddCommand(daemonSchedulerCmd)
 	rootCmd.AddCommand(daemonCmd)
 }
@@ -28,7 +27,7 @@ func init() {
 var daemonCmd = &cobra.Command{
 	Use:   "daemon",
 	Short: "Run the homelabctl daemon",
-	Long:  "Run all homelabctl daemon components (dashboard, mDNS, scheduler).",
+	Long:  "Run all homelabctl daemon components (dashboard, scheduler).",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := config.Load()
 		if err != nil {
@@ -53,27 +52,16 @@ var daemonCmd = &cobra.Command{
 		defer sched.Stop()
 		fmt.Println("Scheduler started")
 
-		// Start mDNS (uses scheduler for periodic sync when available)
-		if cfg.MDNS.Enabled {
-			shutdownMDNS, err := startMDNS(cfg, mgr, runner, sched)
-			if err != nil {
-				slog.Warn("mDNS failed to start", "error", err)
-			} else {
-				defer shutdownMDNS()
-				fmt.Println("mDNS advertiser started")
-			}
-
-			// Wire dashboard route regeneration on traefik deploy
-			if cfg.Routing.Enabled {
-				prevOnDeploy := mgr.OnDeploy
-				mgr.OnDeploy = func(appName string, routing *app.DeployedRouting) {
-					if prevOnDeploy != nil {
-						prevOnDeploy(appName, routing)
-					}
-					if appName == "traefik" {
-						if err := app.GenerateDashboardRoute(cfg); err != nil {
-							slog.Warn("Failed to regenerate dashboard route", "error", err)
-						}
+		// Wire dashboard route regeneration on traefik deploy
+		if cfg.Routing.Enabled {
+			prevOnDeploy := mgr.OnDeploy
+			mgr.OnDeploy = func(appName string, routing *app.DeployedRouting) {
+				if prevOnDeploy != nil {
+					prevOnDeploy(appName, routing)
+				}
+				if appName == "traefik" {
+					if err := app.GenerateDashboardRoute(cfg); err != nil {
+						slog.Warn("Failed to regenerate dashboard route", "error", err)
 					}
 				}
 			}

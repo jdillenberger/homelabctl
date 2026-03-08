@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"html"
 	"net/http"
@@ -9,10 +11,8 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	"github.com/jdillenberger/homelabctl/internal/alert"
+	"github.com/jdillenberger/homelabctl/internal/alertclient"
 	"github.com/jdillenberger/homelabctl/internal/app"
-	"github.com/jdillenberger/homelabctl/internal/config"
-	"github.com/jdillenberger/homelabctl/internal/mdns"
 )
 
 // PortalApp represents an app displayed on the portal dashboard.
@@ -33,7 +33,6 @@ type FleetPeer struct {
 	Address  string
 	Port     int
 	DashURL  string
-	Apps     []string
 }
 
 // DashboardData holds data for the dashboard template.
@@ -106,15 +105,24 @@ func (h *Handler) Dashboard(c echo.Context) error {
 		portalApps = append(portalApps, pa)
 	}
 
-	// Count recent alerts (last 24h) — fast file read, no blocking I/O
+	// Count recent alerts (last 24h) from labalert
 	var alertCount int
-	alertStore := alert.NewStore(h.cfg.DataDir)
-	alertHistory, err := alertStore.LoadHistory()
-	if err == nil {
-		cutoff := time.Now().Add(-24 * time.Hour)
-		for _, a := range alertHistory {
-			if a.Timestamp.After(cutoff) {
-				alertCount++
+	if h.cfg.Labalert.URL != "" {
+		ctx, cancel := context.WithTimeout(c.Request().Context(), 2*time.Second)
+		defer cancel()
+		client := alertclient.New(h.cfg.Labalert.URL)
+		historyRaw, err := client.History(ctx, 500)
+		if err == nil {
+			var history []struct {
+				Timestamp time.Time `json:"timestamp"`
+			}
+			if json.Unmarshal(historyRaw, &history) == nil {
+				cutoff := time.Now().Add(-24 * time.Hour)
+				for _, a := range history {
+					if a.Timestamp.After(cutoff) {
+						alertCount++
+					}
+				}
 			}
 		}
 	}
@@ -168,54 +176,26 @@ func (h *Handler) DashboardHealth(c echo.Context) error {
 
 // DashboardPeers returns the fleet peers section HTML, loaded asynchronously.
 func (h *Handler) DashboardPeers(c echo.Context) error {
-	var peers []FleetPeer
-
-	if h.cfg.MDNS.Enabled {
-		hosts, err := mdns.Discover(2 * time.Second)
-		if err == nil {
-			for _, host := range hosts {
-				if host.Hostname == h.cfg.Hostname {
-					continue
-				}
-				peers = append(peers, FleetPeer{
-					Hostname: host.Hostname,
-					Address:  host.Address,
-					Port:     host.Port,
-					DashURL:  fmt.Sprintf("http://%s:%d", host.Address, host.Port),
-					Apps:     host.Apps,
-				})
-			}
-		}
+	resp, err := h.peerClient.Peers()
+	if err != nil || len(resp.Peers) == 0 {
+		return c.HTML(http.StatusOK, "")
 	}
 
-	// Also include fleet config hosts that weren't discovered
-	fleetCfg, err := config.LoadFleetConfig()
-	if err == nil {
-		for _, host := range fleetCfg.Hosts {
-			if host.Hostname == h.cfg.Hostname {
-				continue
-			}
-			found := false
-			for _, p := range peers {
-				if p.Hostname == host.Hostname {
-					found = true
-					break
-				}
-			}
-			if !found && host.Address != "" {
-				port := host.Port
-				if port == 0 {
-					port = 8080
-				}
-				peers = append(peers, FleetPeer{
-					Hostname: host.Hostname,
-					Address:  host.Address,
-					Port:     port,
-					DashURL:  fmt.Sprintf("http://%s:%d", host.Address, port),
-					Apps:     host.Apps,
-				})
-			}
+	var peers []FleetPeer
+	for _, p := range resp.Peers {
+		if p.Hostname == h.cfg.Hostname {
+			continue
 		}
+		port := p.Port
+		if port == 0 {
+			port = 8080
+		}
+		peers = append(peers, FleetPeer{
+			Hostname: p.Hostname,
+			Address:  p.Address,
+			Port:     port,
+			DashURL:  fmt.Sprintf("http://%s:%d", p.Address, port),
+		})
 	}
 
 	if len(peers) == 0 {
@@ -227,9 +207,6 @@ func (h *Handler) DashboardPeers(c echo.Context) error {
 	for _, p := range peers {
 		fmt.Fprintf(&buf, `<a href="%s" target="_blank" rel="noopener" class="peer-chip"><span class="peer-dot"></span>%s`,
 			html.EscapeString(p.DashURL), html.EscapeString(p.Hostname))
-		if len(p.Apps) > 0 {
-			fmt.Fprintf(&buf, `<small>(%d)</small>`, len(p.Apps))
-		}
 		buf.WriteString(`</a>`)
 	}
 	buf.WriteString(`</div>`)

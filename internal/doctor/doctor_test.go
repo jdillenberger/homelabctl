@@ -8,8 +8,8 @@ func TestCheckAll(t *testing.T) {
 	results := CheckAll()
 	deps := DefaultDependencies()
 
-	// CheckAll returns dependency checks + system checks (nsswitch-mdns, avahi-daemon-running, avahi-interfaces, resolved-mdns, avahi-hostname-conflict)
-	expectedCount := len(deps) + 5
+	// CheckAll returns dependency checks + traefik-mdns + peer-scanner optional checks
+	expectedCount := len(deps) + 2
 
 	t.Run("returns result for each check", func(t *testing.T) {
 		if len(results) != expectedCount {
@@ -36,17 +36,23 @@ func TestCheckAll(t *testing.T) {
 		}
 	})
 
-	t.Run("system checks are appended", func(t *testing.T) {
-		if len(results) < 2 {
-			t.Fatal("not enough results for system checks")
+	t.Run("traefik-mdns check is appended", func(t *testing.T) {
+		if len(results) < len(deps)+1 {
+			t.Fatal("not enough results for traefik-mdns check")
 		}
-		nssIdx := len(deps)
-		avahiIdx := len(deps) + 1
-		if results[nssIdx].Name != "nsswitch-mdns" {
-			t.Errorf("expected nsswitch-mdns at index %d, got %q", nssIdx, results[nssIdx].Name)
+		idx := len(deps)
+		if results[idx].Name != "traefik-mdns" {
+			t.Errorf("expected traefik-mdns at index %d, got %q", idx, results[idx].Name)
 		}
-		if results[avahiIdx].Name != "avahi-daemon-running" {
-			t.Errorf("expected avahi-daemon-running at index %d, got %q", avahiIdx, results[avahiIdx].Name)
+	})
+
+	t.Run("peer-scanner check is appended", func(t *testing.T) {
+		if len(results) < len(deps)+2 {
+			t.Fatal("not enough results for peer-scanner check")
+		}
+		idx := len(deps) + 1
+		if results[idx].Name != "peer-scanner" {
+			t.Errorf("expected peer-scanner at index %d, got %q", idx, results[idx].Name)
 		}
 	})
 }
